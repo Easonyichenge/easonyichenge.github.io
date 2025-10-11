@@ -9,6 +9,7 @@
     <script nomodule src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/qrcode@1.4.4/build/qrcode.min.js"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
@@ -105,6 +106,10 @@
         .flatpickr-current-month input.cur-year {
             font-weight: 600 !important;
         }
+        .batch-qr-modal-content {
+            max-height: 65vh;
+            overflow-y: auto;
+        }
     </style>
 </head>
 <body class="text-gray-800">
@@ -147,6 +152,12 @@
                 <div id="page-roster" class="hidden">
                     <div class="apple-card">
                         <h2 class="text-2xl font-bold mb-4">管理學生名冊</h2>
+                        <button id="public-qr-btn" class="apple-btn bg-gray-800 text-white px-4 py-3 flex items-center justify-center gap-2 mb-4">
+                            <ion-icon name="qr-code-outline" class="text-2xl"></ion-icon> 產生全班共用學生QR Code
+                        </button>
+                        <button id="batch-qrcode-btn" class="apple-btn apple-btn-primary px-5 py-3 flex items-center justify-center gap-2 mb-4">
+                            <ion-icon name="qr-code-outline"></ion-icon> 產生全班今日 QR Code
+                        </button>
                         <div class="flex flex-col sm:flex-row gap-2 mb-4">
                             <input type="text" id="new-student-id" placeholder="學號" class="apple-input w-1/3">
                             <input type="text" id="new-student-name" placeholder="姓名" class="flex-grow apple-input w-2/3">
@@ -179,6 +190,7 @@
             </main>
         </div>
     </div>
+
     <div id="student-view" class="hidden">
         <div class="container mx-auto p-4 sm:p-6 max-w-md min-h-screen flex flex-col justify-center">
             <div class="apple-card text-center">
@@ -202,12 +214,11 @@
     <div id="modal-container" class="fixed inset-0 z-50 hidden"></div>
     <script>
     document.addEventListener('DOMContentLoaded', () => {
-        // DOM 選擇
+        // ====== 參數設定與 DOM =====
         const teacherView = document.getElementById('teacher-view');
         const studentView = document.getElementById('student-view');
         const currentDateEl = document.getElementById('current-date');
         const studentViewDateEl = document.getElementById('student-view-date');
-        // 標籤頁
         const tabContainer = document.getElementById('tab-container');
         const tabs = {
             rollCall: document.getElementById('tab-roll-call'),
@@ -219,50 +230,92 @@
             roster: document.getElementById('page-roster'),
             history: document.getElementById('page-history'),
         };
-        // 點名頁
         const rollCallList = document.getElementById('roll-call-list');
         const presentCountEl = document.getElementById('present-count');
         const absentCountEl = document.getElementById('absent-count');
         const lateCountEl = document.getElementById('late-count');
-        // 名冊頁
         const rosterList = document.getElementById('roster-list');
         const newStudentIdInput = document.getElementById('new-student-id');
         const newStudentNameInput = document.getElementById('new-student-name');
         const addStudentBtn = document.getElementById('add-student-btn');
-        // 歷史頁
+        const batchQrcodeBtn = document.getElementById('batch-qrcode-btn');
+        const publicQrBtn = document.getElementById('public-qr-btn');
         const historyDateInput = document.getElementById('history-date-input');
         const historyPrevBtn = document.getElementById('history-prev-btn');
         const historyNextBtn = document.getElementById('history-next-btn');
         const historyTodayBtn = document.getElementById('history-today-btn');
         const historyList = document.getElementById('history-list');
-        // 學生簽到頁
         const studentSelectionList = document.getElementById('student-selection-list');
         const studentCheckinArea = document.getElementById('student-checkin-area');
         const studentSuccessArea = document.getElementById('student-success-area');
         const successStudentNameEl = document.getElementById('success-student-name');
-        // Modals
         const modalContainer = document.getElementById('modal-container');
         const scanQrBtn = document.getElementById('scan-qr-btn');
 
-        // 狀態管理
         let students = [];
         let attendanceRecords = {};
         const today = new Date();
         const todayString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-        // 歷史日期選擇器狀態
         let historyDates = [];
         let selectedHistoryDate = "";
 
-        // 初始化
+        // ======= 學生端個人 QR Code 產生頁 =======
+        function setupStudentQrcodeView() {
+            teacherView?.classList.add('hidden');
+            studentView?.classList.add('hidden');
+            document.body.innerHTML = `
+<div class="container mx-auto p-4 sm:p-6 max-w-md min-h-screen flex flex-col justify-center">
+    <div class="apple-card text-center">
+        <h2 class="text-2xl font-bold mb-4">產生個人今日 QR Code</h2>
+        <input id="input-myid" class="apple-input w-full mb-3" type="text" placeholder="請輸入學號">
+        <button id="gen-myqrcode-btn" class="apple-btn apple-btn-primary w-full py-3 mb-3">產生個人 QR Code</button>
+        <div id="myqrcode-area" class="hidden">
+            <canvas id="myqrcode-canvas"></canvas>
+            <p class="mt-2 text-gray-600"><span id="myid-show"></span> | <span id="mydate-show"></span></p>
+            <button id="download-myqrcode-btn" class="apple-btn bg-gray-200 mt-4">下載 QR Code</button>
+        </div>
+        <p class="mt-6 text-xs text-gray-500">請輸入正確學號，產生當天有效之個人 QR Code，出示給老師掃描</p>
+    </div>
+</div>
+`;
+            const inputMyid = document.getElementById('input-myid');
+            const genMyqrcodeBtn = document.getElementById('gen-myqrcode-btn');
+            const myqrcodeArea = document.getElementById('myqrcode-area');
+            const myidShow = document.getElementById('myid-show');
+            const mydateShow = document.getElementById('mydate-show');
+            const downloadBtn = document.getElementById('download-myqrcode-btn');
+            const todayString = new Date().toISOString().slice(0, 10);
+
+            genMyqrcodeBtn.onclick = function() {
+                const myid = inputMyid.value.trim();
+                if(!myid) { alert("請輸入學號！"); return; }
+                const content = `${myid}|${todayString}`;
+                QRCode.toCanvas(document.getElementById('myqrcode-canvas'), content, { width: 180, margin: 1 });
+                myidShow.textContent = myid;
+                mydateShow.textContent = todayString;
+                myqrcodeArea.classList.remove('hidden');
+            };
+            downloadBtn.onclick = function() {
+                const canvas = document.getElementById('myqrcode-canvas');
+                const link = document.createElement('a');
+                link.download = `我的QR_${inputMyid.value.trim()}_${todayString}.png`;
+                link.href = canvas.toDataURL();
+                link.click();
+            };
+        }
+
+        // 若網址參數有 ?mode=studentqrcode 進入學生個人 QR 產生頁
+        if (new URLSearchParams(window.location.search).get("mode") === "studentqrcode") {
+            setupStudentQrcodeView();
+            return;
+        }
+
+        // ======= 教師與學生主系統 =======
         function initialize() {
             const urlParams = new URLSearchParams(window.location.search);
-            if (urlParams.get('mode') === 'student') {
-                setupStudentView();
-            } else {
-                setupTeacherView();
-            }
+            if (urlParams.get('mode') === 'student') setupStudentView();
+            else setupTeacherView();
         }
-        // 教師介面
         function setupTeacherView() {
             teacherView.classList.remove('hidden');
             studentView.classList.add('hidden');
@@ -271,7 +324,6 @@
             renderRollCallList();
             renderRosterList();
         }
-        // 學生介面
         function setupStudentView() {
             teacherView.classList.add('hidden');
             studentView.classList.remove('hidden');
@@ -279,14 +331,11 @@
             loadData(true);
             renderStudentCheckinPage();
         }
-        // 本地儲存
         function loadData(silent = false) {
             const storedStudents = localStorage.getItem('students');
             const storedRecords = localStorage.getItem('attendanceRecords');
             if (storedStudents) students = JSON.parse(storedStudents);
-            else if (!silent) {
-                students = [ { id: "S001", name: '王小明' }, { id: "S002", name: '陳大文' }, { id: "S003", name: '林美麗' } ];
-            }
+            else if (!silent) students = [ { id: "S001", name: '王小明' }, { id: "S002", name: '陳大文' }, { id: "S003", name: '林美麗' } ];
             if (storedRecords) attendanceRecords = JSON.parse(storedRecords);
             if (!attendanceRecords[todayString]) attendanceRecords[todayString] = {};
         }
@@ -294,7 +343,6 @@
             localStorage.setItem('students', JSON.stringify(students));
             localStorage.setItem('attendanceRecords', JSON.stringify(attendanceRecords));
         }
-        // 渲染函式 (教師)
         function renderRollCallList() {
             rollCallList.innerHTML = '';
             if (students.length === 0) {
@@ -303,13 +351,6 @@
             }
             students.forEach(s => {
                 const status = attendanceRecords[todayString]?.[s.id] || 'unknown';
-                const statusConfig = {
-                    present: { text: '到課', color: 'green' },
-                    absent: { text: '缺席', color: 'red' },
-                    late: { text: '遲到', color: 'yellow' },
-                    unknown: { text: '未到', color: 'gray' },
-                };
-                const current = statusConfig[status];
                 const item = document.createElement('div');
                 item.className = `flex items-center justify-between p-4 bg-gray-50 rounded-xl transition hover:bg-gray-100`;
                 item.innerHTML = `
@@ -351,7 +392,6 @@
                 rosterList.appendChild(item);
             });
         }
-        // 歷史紀錄
         function renderHistory() {
             historyDates = Object.keys(attendanceRecords).sort((a, b) => new Date(a) - new Date(b));
             if (historyDates.length === 0) {
@@ -393,7 +433,6 @@
                 historyList.appendChild(item);
             });
         }
-        // flatpickr 日期選擇器
         window.historyDatePicker = flatpickr(historyDateInput, {
             dateFormat: "Y-m-d",
             disableMobile: true,
@@ -450,11 +489,9 @@
                 renderHistoryForDate(date);
             }
         });
-        // 學生當日QR產生
         function getTodayQrContent(student) {
             return `${student.id}|${todayString}`;
         }
-        // Modal 邏輯
         function openModal(modalEl, options = {}) {
             modalContainer.innerHTML = '';
             const backdrop = document.createElement('div');
@@ -491,7 +528,6 @@
             modalEl.querySelector('#confirm-btn-ok').addEventListener('click', () => { onOk(); close(); });
             modalEl.querySelector('#confirm-btn-cancel').addEventListener('click', close);
         }
-        // 事件監聽
         tabContainer.addEventListener('click', (e) => {
             if(e.target.classList.contains('apple-tab-link')) {
                 Object.values(tabs).forEach(t => t.classList.remove('active'));
@@ -512,7 +548,6 @@
                 saveData();
                 renderRollCallList();
             }
-            // 今日QR
             const qrBtn = e.target.closest('.show-today-qr-btn');
             if (qrBtn) showStudentTodayQr(qrBtn.dataset.id);
         });
@@ -577,7 +612,91 @@
         });
         newStudentIdInput.addEventListener('keypress', e => { if (e.key === 'Enter') newStudentNameInput.focus(); });
         newStudentNameInput.addEventListener('keypress', e => { if (e.key === 'Enter') addStudentBtn.click(); });
-        // 掃描學生 QR Code 點名
+
+        // ======== 批次產生全班 QR Code ========
+        batchQrcodeBtn.addEventListener('click', function() {
+            if (students.length === 0) { alert('尚無學生資料'); return; }
+            const modalEl = document.createElement('div');
+            modalEl.className = "w-full max-w-2xl text-center";
+            let html = `
+                <div class="flex justify-between items-center pb-3">
+                    <h3 class="text-lg font-semibold">全班今日 QR Code</h3>
+                    <button class="modal-close-btn text-gray-400 hover:text-gray-600"><ion-icon name="close-outline" class="text-2xl"></ion-icon></button>
+                </div>
+                <div class="batch-qr-modal-content grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 p-2 pb-0">`;
+            students.forEach((student, idx) => {
+                html += `
+                <div class="flex flex-col items-center bg-gray-50 rounded-xl p-3">
+                    <canvas id="batch-qr-canvas-${idx}"></canvas>
+                    <div class="mt-2 font-semibold">${student.name}</div>
+                    <div class="text-xs text-gray-500 mb-1">(${student.id})</div>
+                    <button data-idx="${idx}" data-name="${student.name}" data-id="${student.id}" class="download-single-qr apple-btn bg-gray-200 px-2 py-1 text-xs mt-1">下載</button>
+                </div>`;
+            });
+            html += `</div>
+                <button id="download-all-qr-btn" class="apple-btn apple-btn-primary px-4 py-2 mt-5">下載全部 QR Code（zip）</button>
+                <p class="mt-2 text-xs text-gray-500">每個 QR Code 內容：學號|日期，僅當日有效</p>
+            `;
+            modalEl.innerHTML = html;
+            openModal(modalEl);
+            students.forEach((student, idx) => {
+                QRCode.toCanvas(
+                    document.getElementById(`batch-qr-canvas-${idx}`),
+                    `${student.id}|${todayString}`,
+                    { width: 150, margin: 1 }
+                );
+            });
+            modalEl.querySelectorAll('.download-single-qr').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const idx = btn.getAttribute('data-idx');
+                    const name = btn.getAttribute('data-name');
+                    const id = btn.getAttribute('data-id');
+                    const canvas = document.getElementById(`batch-qr-canvas-${idx}`);
+                    const link = document.createElement('a');
+                    link.download = `${name}_${id}_QRCode.png`;
+                    link.href = canvas.toDataURL();
+                    link.click();
+                });
+            });
+            modalEl.querySelector('#download-all-qr-btn').addEventListener('click', async function() {
+                const zip = new JSZip();
+                for (let idx = 0; idx < students.length; idx++) {
+                    const student = students[idx];
+                    const canvas = document.getElementById(`batch-qr-canvas-${idx}`);
+                    const dataUrl = canvas.toDataURL("image/png");
+                    const base64 = dataUrl.split(',')[1];
+                    zip.file(`${student.name}_${student.id}_QRCode.png`, base64, {base64: true});
+                }
+                const blob = await zip.generateAsync({type:"blob"});
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `全班今日QRCode_${todayString}.zip`;
+                a.click();
+                setTimeout(()=>URL.revokeObjectURL(url), 1000);
+            });
+        });
+
+        // ========== 全班共用學生QR code 按鈕 ==========
+        publicQrBtn.addEventListener('click', function() {
+            const modalEl = document.createElement('div');
+            modalEl.className = "w-full max-w-xs text-center";
+            modalEl.innerHTML = `
+                <div class="flex justify-between items-center pb-3">
+                    <h3 class="text-lg font-semibold">全班共用學生 QR Code</h3>
+                    <button class="modal-close-btn text-gray-400 hover:text-gray-600"><ion-icon name="close-outline" class="text-2xl"></ion-icon></button>
+                </div>
+                <div class="bg-white p-4 rounded-lg inline-block">
+                    <canvas id="public-qr-canvas"></canvas>
+                </div>
+                <p class="mt-4 text-gray-600">學生掃描此 QR Code 進入個人 QR 產生頁面</p>
+                <p class="mt-2 text-xs text-gray-500 break-all">${location.origin + location.pathname}?mode=studentqrcode</p>
+            `;
+            openModal(modalEl);
+            const url = `${location.origin + location.pathname}?mode=studentqrcode`;
+            QRCode.toCanvas(document.getElementById('public-qr-canvas'), url, { width: 256, margin: 1 });
+        });
+
         scanQrBtn.addEventListener('click', () => {
             const modalEl = document.createElement('div');
             modalEl.className = "w-full max-w-xs";
@@ -602,10 +721,8 @@
                         qrStatusMsg.textContent = "QR Code 格式錯誤！";
                         return;
                     }
-                    // 去除空白
                     id = id.trim();
                     date = date.trim();
-                    // 僅允許今日
                     if (date !== todayString) {
                         qrStatusMsg.textContent = `此 QR Code 僅限 ${todayString} 使用！`;
                         return;
@@ -625,7 +742,6 @@
                 err => {}
             ).catch(e=>{qrStatusMsg.textContent="無法啟動相機："+e;});
         });
-        // 學生簽到
         studentSelectionList.addEventListener('click', (e) => {
             const btn = e.target.closest('button[data-id]');
             if (btn) {
@@ -640,7 +756,6 @@
                 }
             }
         });
-        // Storage 事件監聽
         window.addEventListener('storage', function(e) {
             if (e.key === 'attendanceRecords') {
                 loadData();
@@ -676,7 +791,6 @@
             studentCheckinArea.classList.add('hidden');
             studentSuccessArea.classList.remove('hidden');
         }
-        // 初始化
         initialize();
     });
     </script>
