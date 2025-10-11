@@ -1,53 +1,175 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>智慧點名系統（Google登入+老師權限）</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script type="module" src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.esm.js"></script>
-    <script nomodule src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.4.4/build/qrcode.min.js"></script>
-    <script src="https://unpkg.com/html5-qrcode"></script>
-    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
-    <!-- Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
-    <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", "Noto Sans TC", Roboto, "Helvetica Neue", Arial, sans-serif; background-color: #f5f5f7; }
-        .apple-card { background-color: #ffffff; border-radius: 20px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08); padding: 24px; }
-        .apple-btn { border-radius: 12px; font-weight: 600; transition: all 0.2s ease-in-out; border: none; cursor: pointer; }
-        .apple-btn-primary { background-color: #007aff; color: white; }
-        .apple-btn-primary:hover { background-color: #0056b3; }
-        .apple-btn:active { transform: scale(0.96);}
-        .apple-input { background-color: #f0f0f0; border: none; border-radius: 12px; padding: 12px 16px; }
-        .apple-input:focus { outline: none; box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.3);}
-        .apple-tab-nav { background-color: #e5e5ea; border-radius: 12px; padding: 4px; display: inline-flex;}
-        .apple-tab-link { padding: 8px 16px; border-radius: 9px; font-weight: 500; color: #555; cursor: pointer; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);}
-        .apple-tab-link.active { background-color: white; color: #000; box-shadow: 0 1px 3px rgba(0,0,0,0.1);}
-        .modal-backdrop { backdrop-filter: blur(8px); background-color: rgba(0,0,0,0.4);}
-        .flatpickr-calendar { border-radius: 18px !important; box-shadow: 0 8px 36px 0 rgba(0,0,0,0.18) !important; font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", "Noto Sans TC", Roboto, "Helvetica Neue", Arial, sans-serif !important; border: none !important;}
-        .flatpickr-months .flatpickr-month { background: #f5f5f7 !important; border-radius: 18px 18px 0 0 !important;}
-        .flatpickr-day.selected, .flatpickr-day.startRange, .flatpickr-day.endRange, .flatpickr-day.selected.inRange, .flatpickr-day.startRange.inRange, .flatpickr-day.endRange.inRange, .flatpickr-day.selected:focus, .flatpickr-day.selected:active { background: #007aff !important; color: #fff !important; border-radius: 50% !important; font-weight: 700; box-shadow: 0 4px 12px #007aff55; transform: scale(1.06);}
-        .flatpickr-day.today { border-color: #007aff !important; font-weight: 600; background: #e5f0ff !important;}
-        .flatpickr-day:hover, .flatpickr-day:focus { background: #e5e5ea !important; border-radius: 50% !important;}
-        .flatpickr-current-month input.cur-year { font-weight: 600 !important;}
-        .batch-qr-modal-content { max-height: 65vh; overflow-y: auto;}
-    </style>
+  <meta charset="UTF-8">
+  <title>智慧點名系統（Google Redirect 登入）</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.4.4/build/qrcode.min.js"></script>
+  <script src="https://unpkg.com/html5-qrcode"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", "Noto Sans TC", Roboto, "Helvetica Neue", Arial, sans-serif; background-color: #f5f5f7; }
+    .apple-card { background-color: #ffffff; border-radius: 20px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08); padding: 24px; }
+    .apple-btn { border-radius: 12px; font-weight: 600; transition: all 0.2s ease-in-out; border: none; cursor: pointer; }
+    .apple-btn-primary { background-color: #007aff; color: white; }
+    .apple-btn-primary:hover { background-color: #0056b3; }
+    .apple-btn:active { transform: scale(0.96);}
+    .apple-input { background-color: #f0f0f0; border: none; border-radius: 12px; padding: 12px 16px; }
+    .apple-input:focus { outline: none; box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.3);}
+    .apple-tab-nav { background-color: #e5e5ea; border-radius: 12px; padding: 4px; display: inline-flex;}
+    .apple-tab-link { padding: 8px 16px; border-radius: 9px; font-weight: 500; color: #555; cursor: pointer; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);}
+    .apple-tab-link.active { background-color: white; color: #000; box-shadow: 0 1px 3px rgba(0,0,0,0.1);}
+    .modal-backdrop { backdrop-filter: blur(8px); background-color: rgba(0,0,0,0.4);}
+    .flatpickr-calendar { border-radius: 18px !important; box-shadow: 0 8px 36px 0 rgba(0,0,0,0.18) !important; font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", "Noto Sans TC", Roboto, "Helvetica Neue", Arial, sans-serif !important; border: none !important;}
+    .flatpickr-months .flatpickr-month { background: #f5f5f7 !important; border-radius: 18px 18px 0 0 !important;}
+    .flatpickr-day.selected, .flatpickr-day.startRange, .flatpickr-day.endRange, .flatpickr-day.selected.inRange, .flatpickr-day.startRange.inRange, .flatpickr-day.endRange.inRange, .flatpickr-day.selected:focus, .flatpickr-day.selected:active { background: #007aff !important; color: #fff !important; border-radius: 50% !important; font-weight: 700; box-shadow: 0 4px 12px #007aff55; transform: scale(1.06);}
+    .flatpickr-day.today { border-color: #007aff !important; font-weight: 600; background: #e5f0ff !important;}
+    .flatpickr-day:hover, .flatpickr-day:focus { background: #e5e5ea !important; border-radius: 50% !important;}
+    .flatpickr-current-month input.cur-year { font-weight: 600 !important;}
+    .batch-qr-modal-content { max-height: 65vh; overflow-y: auto;}
+  </style>
 </head>
 <body class="text-gray-800">
-
-<div id="teacher-app" style="display:none;">
-<!-- 老師端完整內容，省略註解，功能和前述一致 -->
-<div id="teacher-view">
+<div id="root"></div>
+<script>
+const TEACHER_EMAILS = ["easonyichenge@gmail.com"];
+const firebaseConfig = {
+  apiKey: "AIzaSyAWHcrQdzFIfi8x8MJCLu44Wz5dZOLqQoE",
+  authDomain: "test-b5451.firebaseapp.com",
+  projectId: "test-b5451",
+  storageBucket: "test-b5451.appspot.com",
+  messagingSenderId: "740966432025",
+  appId: "1:740966432025:web:183468071fcf26c355d988",
+  measurementId: "G-ZZEJ9TGC9D"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+function getTodayString() {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+}
+function firestoreOnStudentsChange(cb) {
+    db.collection('attendance').doc('students').onSnapshot(doc => {
+        cb(doc.exists ? doc.data().list : []);
+    });
+}
+async function firestoreSaveStudents(students) {
+    await db.collection('attendance').doc('students').set({ list: students });
+}
+function firestoreOnAttendanceRecordsChange(cb) {
+    db.collection('attendance').doc('records').onSnapshot(doc => {
+        cb(doc.exists ? doc.data() : {});
+    });
+}
+async function firestoreSaveAttendanceRecords(records) {
+    await db.collection('attendance').doc('records').set(records);
+}
+function showLogin() {
+  document.getElementById('root').innerHTML = `
+    <div class="flex flex-col items-center justify-center min-h-screen">
+      <div class="apple-card max-w-md w-full text-center">
+        <h2 class="text-2xl font-bold mb-6">智慧點名系統</h2>
+        <button id="google-login" class="apple-btn apple-btn-primary px-6 py-3 text-xl w-full">以 Google 帳號登入</button>
+        <p class="mt-4 text-gray-500">僅限本班師生登入</p>
+      </div>
+    </div>
+  `;
+  document.getElementById("google-login").onclick = function() {
+    const provider = new firebase.auth.GoogleAuthProvider();
+    firebase.auth().signInWithRedirect(provider);
+  };
+}
+function showStudentQrcodeView() {
+  document.body.innerHTML = `
+<div class="container mx-auto p-4 sm:p-6 max-w-md min-h-screen flex flex-col justify-center">
+    <div class="apple-card text-center">
+        <h2 class="text-2xl font-bold mb-4">產生個人今日 QR Code</h2>
+        <input id="input-myid" class="apple-input w-full mb-3" type="text" placeholder="請輸入學號">
+        <button id="gen-myqrcode-btn" class="apple-btn apple-btn-primary w-full py-3 mb-3">產生個人 QR Code</button>
+        <div id="myqrcode-area" class="hidden">
+            <canvas id="myqrcode-canvas"></canvas>
+            <p class="mt-2 text-gray-600"><span id="myid-show"></span> | <span id="mydate-show"></span></p>
+            <button id="download-myqrcode-btn" class="apple-btn bg-gray-200 mt-4">下載 QR Code</button>
+        </div>
+        <p class="mt-6 text-xs text-gray-500">請輸入正確學號，產生當天有效之個人 QR Code，出示給老師掃描</p>
+    </div>
+</div>
+`;
+    const todayString = getTodayString();
+    const inputMyid = document.getElementById('input-myid');
+    const genMyqrcodeBtn = document.getElementById('gen-myqrcode-btn');
+    const myqrcodeArea = document.getElementById('myqrcode-area');
+    const myidShow = document.getElementById('myid-show');
+    const mydateShow = document.getElementById('mydate-show');
+    const downloadBtn = document.getElementById('download-myqrcode-btn');
+    genMyqrcodeBtn.onclick = function() {
+        const myid = inputMyid.value.trim();
+        if(!myid) { alert("請輸入學號！"); return; }
+        const content = `${myid}|${todayString}`;
+        QRCode.toCanvas(document.getElementById('myqrcode-canvas'), content, { width: 180, margin: 1 });
+        myidShow.textContent = myid;
+        mydateShow.textContent = todayString;
+        myqrcodeArea.classList.remove('hidden');
+    };
+    downloadBtn.onclick = function() {
+        const canvas = document.getElementById('myqrcode-canvas');
+        const link = document.createElement('a');
+        link.download = `我的QR_${inputMyid.value.trim()}_${todayString}.png`;
+        link.href = canvas.toDataURL();
+        link.click();
+    };
+}
+function showStudentView() {
+  document.getElementById('root').innerHTML = `
+    <div class="apple-card max-w-md mx-auto mt-20 text-center">
+      <h2 class="text-2xl font-bold mb-3">學生簽到</h2>
+      <p>請掃描 QR Code 或用老師端進行簽到</p>
+    </div>
+  `;
+}
+// 入口控制
+window.onload = function() {
+  if (new URLSearchParams(window.location.search).get("mode") === "studentqrcode") {
+    showStudentQrcodeView();
+    return;
+  }
+  firebase.auth().getRedirectResult().then(function(result) {
+    // result.user 不為 null，代表剛剛 redirect 完登入成功
+    // 這時 onAuthStateChanged 也會觸發
+    if (result.user) {
+      // 可在這裡顯示 loading 或直接 reload
+    }
+  }).catch(function(error) {
+    alert(error.message);
+  });
+  firebase.auth().onAuthStateChanged(function(user) {
+    if (!user) { showLogin(); return; }
+    if (TEACHER_EMAILS.includes(user.email)) {
+      document.getElementById("root").innerHTML = teacherAppHtml(user.email);
+      runTeacherApp();
+    } else {
+      showStudentView();
+    }
+  });
+};
+document.addEventListener("click", function(e){
+    if(e.target && e.target.id === "logout-btn") {
+        firebase.auth().signOut().then(()=>location.reload());
+    }
+});
+function teacherAppHtml(email) {
+  return `
+  <div id="teacher-view">
     <div class="container mx-auto p-4 sm:p-6 md:p-8 max-w-3xl">
         <header class="text-center mb-8">
             <div class="flex justify-end">
-                <span id="teacher-user-email" class="text-sm text-gray-500 mr-2"></span>
+                <span id="teacher-user-email" class="text-sm text-gray-500 mr-2">${email}</span>
                 <button id="logout-btn" class="apple-btn px-3 py-1 bg-gray-200 text-gray-600 hover:bg-gray-300">登出</button>
             </div>
             <h1 class="text-4xl font-bold text-gray-900">智慧點名系統</h1>
@@ -120,124 +242,11 @@
         </main>
     </div>
 </div>
-</div>
-<div id="modal-container" class="fixed inset-0 z-50 hidden"></div>
-<script>
-// ====== 你的 config 設定 ======
-const TEACHER_EMAILS = ["easonyichenge@gmail.com"];
-const firebaseConfig = {
-  apiKey: "AIzaSyAWHcrQdzFIfi8x8MJCLu44Wz5dZOLqQoE",
-  authDomain: "test-b5451.firebaseapp.com",
-  projectId: "test-b5451",
-  storageBucket: "test-b5451.appspot.com",
-  messagingSenderId: "740966432025",
-  appId: "1:740966432025:web:183468071fcf26c355d988",
-  measurementId: "G-ZZEJ9TGC9D"
-};
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
-function getTodayString() {
-    const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+  `;
 }
-function firestoreOnStudentsChange(cb) {
-    db.collection('attendance').doc('students').onSnapshot(doc => {
-        cb(doc.exists ? doc.data().list : []);
-    });
-}
-async function firestoreSaveStudents(students) {
-    await db.collection('attendance').doc('students').set({ list: students });
-}
-function firestoreOnAttendanceRecordsChange(cb) {
-    db.collection('attendance').doc('records').onSnapshot(doc => {
-        cb(doc.exists ? doc.data() : {});
-    });
-}
-async function firestoreSaveAttendanceRecords(records) {
-    await db.collection('attendance').doc('records').set(records);
-}
-// ===== Google Auth 控制 =====
-function showLogin() {
-    document.body.innerHTML = `
-    <div class="flex flex-col items-center justify-center min-h-screen">
-      <div class="apple-card max-w-md w-full text-center">
-        <h2 class="text-2xl font-bold mb-6">智慧點名系統</h2>
-        <button id="google-login" class="apple-btn apple-btn-primary px-6 py-3 text-xl w-full">以 Google 帳號登入</button>
-        <p class="mt-4 text-gray-500">僅限本班師生登入</p>
-      </div>
-    </div>
-    `;
-    document.getElementById("google-login").onclick = function() {
-      const provider = new firebase.auth.GoogleAuthProvider();
-      firebase.auth().signInWithPopup(provider).then(() => {
-        location.reload(); // 登入後強制 reload，觸發 onAuthStateChanged 顯示主畫面
-      });
-    };
-}
-function showStudentQrcodeView() {
-    document.body.innerHTML = `
-<div class="container mx-auto p-4 sm:p-6 max-w-md min-h-screen flex flex-col justify-center">
-    <div class="apple-card text-center">
-        <h2 class="text-2xl font-bold mb-4">產生個人今日 QR Code</h2>
-        <input id="input-myid" class="apple-input w-full mb-3" type="text" placeholder="請輸入學號">
-        <button id="gen-myqrcode-btn" class="apple-btn apple-btn-primary w-full py-3 mb-3">產生個人 QR Code</button>
-        <div id="myqrcode-area" class="hidden">
-            <canvas id="myqrcode-canvas"></canvas>
-            <p class="mt-2 text-gray-600"><span id="myid-show"></span> | <span id="mydate-show"></span></p>
-            <button id="download-myqrcode-btn" class="apple-btn bg-gray-200 mt-4">下載 QR Code</button>
-        </div>
-        <p class="mt-6 text-xs text-gray-500">請輸入正確學號，產生當天有效之個人 QR Code，出示給老師掃描</p>
-    </div>
-</div>
-`;
-    const todayString = getTodayString();
-    const inputMyid = document.getElementById('input-myid');
-    const genMyqrcodeBtn = document.getElementById('gen-myqrcode-btn');
-    const myqrcodeArea = document.getElementById('myqrcode-area');
-    const myidShow = document.getElementById('myid-show');
-    const mydateShow = document.getElementById('mydate-show');
-    const downloadBtn = document.getElementById('download-myqrcode-btn');
-    genMyqrcodeBtn.onclick = function() {
-        const myid = inputMyid.value.trim();
-        if(!myid) { alert("請輸入學號！"); return; }
-        const content = `${myid}|${todayString}`;
-        QRCode.toCanvas(document.getElementById('myqrcode-canvas'), content, { width: 180, margin: 1 });
-        myidShow.textContent = myid;
-        mydateShow.textContent = todayString;
-        myqrcodeArea.classList.remove('hidden');
-    };
-    downloadBtn.onclick = function() {
-        const canvas = document.getElementById('myqrcode-canvas');
-        const link = document.createElement('a');
-        link.download = `我的QR_${inputMyid.value.trim()}_${todayString}.png`;
-        link.href = canvas.toDataURL();
-        link.click();
-    };
-}
-// 入口控制
-window.onload = function() {
-    if (new URLSearchParams(window.location.search).get("mode") === "studentqrcode") {
-        showStudentQrcodeView();
-        return;
-    }
-    firebase.auth().onAuthStateChanged(function(user) {
-        if (!user) { showLogin(); return; }
-        if (TEACHER_EMAILS.includes(user.email)) {
-            document.getElementById("teacher-app").style.display = "";
-            document.getElementById("teacher-user-email").innerText = user.email;
-            runTeacherApp();
-        } else {
-            window.location.href = "?mode=student";
-        }
-    });
-};
-document.addEventListener("click", function(e){
-    if(e.target && e.target.id === "logout-btn") {
-        firebase.auth().signOut().then(()=>location.reload());
-    }
-});
-// =========== 老師端主程式 ============
 function runTeacherApp() {
+    // 完整功能與原先 Firestore 版一致
+    // ... 以下與你原有主程式一致 ...
     const teacherView = document.getElementById('teacher-view');
     const currentDateEl = document.getElementById('current-date');
     const tabContainer = document.getElementById('tab-container');
@@ -265,7 +274,6 @@ function runTeacherApp() {
     const historyNextBtn = document.getElementById('history-next-btn');
     const historyTodayBtn = document.getElementById('history-today-btn');
     const historyList = document.getElementById('history-list');
-    const modalContainer = document.getElementById('modal-container');
     const scanQrBtn = document.getElementById('scan-qr-btn');
     let students = [];
     let attendanceRecords = {};
@@ -529,6 +537,12 @@ function runTeacherApp() {
         ).catch(e=>{qrStatusMsg.textContent="無法啟動相機："+e;});
     });
     function openModal(modalEl, options = {}) {
+        let modalContainer = document.getElementById('modal-container');
+        if (!modalContainer) {
+            modalContainer = document.createElement('div');
+            modalContainer.id = 'modal-container';
+            document.body.appendChild(modalContainer);
+        }
         modalContainer.innerHTML = '';
         const backdrop = document.createElement('div');
         backdrop.className = 'modal-backdrop fixed inset-0';
