@@ -2,81 +2,76 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8">
-  <title>智慧點名系統（Google Redirect 登入 完全展開）</title>
+  <title>智慧點名系統（老師專用）</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Tailwind CDN 僅供測試教學用，正式上線建議自行打包 -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcode@1.4.4/build/qrcode.min.js"></script>
   <script src="https://unpkg.com/html5-qrcode"></script>
-  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&display=swap" rel="stylesheet">
   <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", "Noto Sans TC", Roboto, "Helvetica Neue", Arial, sans-serif; background-color: #f5f5f7; }
-    .apple-card { background-color: #ffffff; border-radius: 20px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08); padding: 24px; }
-    .apple-btn { border-radius: 12px; font-weight: 600; transition: all 0.2s ease-in-out; border: none; cursor: pointer; }
-    .apple-btn-primary { background-color: #007aff; color: white; }
-    .apple-btn-primary:hover { background-color: #0056b3; }
-    .apple-btn:active { transform: scale(0.96);}
-    .apple-input { background-color: #f0f0f0; border: none; border-radius: 12px; padding: 12px 16px; }
-    .apple-input:focus { outline: none; box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.3);}
-    .apple-tab-nav { background-color: #e5e5ea; border-radius: 12px; padding: 4px; display: inline-flex;}
-    .apple-tab-link { padding: 8px 16px; border-radius: 9px; font-weight: 500; color: #555; cursor: pointer; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);}
-    .apple-tab-link.active { background-color: white; color: #000; box-shadow: 0 1px 3px rgba(0,0,0,0.1);}
-    .modal-backdrop { backdrop-filter: blur(8px); background-color: rgba(0,0,0,0.4);}
-    .flatpickr-calendar { border-radius: 18px !important; box-shadow: 0 8px 36px 0 rgba(0,0,0,0.18) !important; font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", "Noto Sans TC", Roboto, "Helvetica Neue", Arial, sans-serif !important; border: none !important;}
-    .flatpickr-months .flatpickr-month { background: #f5f5f7 !important; border-radius: 18px 18px 0 0 !important;}
-    .flatpickr-day.selected, .flatpickr-day.startRange, .flatpickr-day.endRange, .flatpickr-day.selected.inRange, .flatpickr-day.startRange.inRange, .flatpickr-day.endRange.inRange, .flatpickr-day.selected:focus, .flatpickr-day.selected:active { background: #007aff !important; color: #fff !important; border-radius: 50% !important; font-weight: 700; box-shadow: 0 4px 12px #007aff55; transform: scale(1.06);}
-    .flatpickr-day.today { border-color: #007aff !important; font-weight: 600; background: #e5f0ff !important;}
-    .flatpickr-day:hover, .flatpickr-day:focus { background: #e5e5ea !important; border-radius: 50% !important;}
-    .flatpickr-current-month input.cur-year { font-weight: 600 !important;}
-    .batch-qr-modal-content { max-height: 65vh; overflow-y: auto;}
+    body { font-family: 'Noto Sans TC', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; background: #f5f7fa;}
+    .apple-card { background: #fff; border-radius: 18px; box-shadow: 0 4px 24px 0 rgba(0,0,0,.07); padding: 24px;}
+    .apple-btn { border-radius: 12px; font-weight: 600; border: none; cursor: pointer; padding: 10px 18px;}
+    .apple-btn-primary { background: #007aff; color: #fff;}
+    .apple-btn-primary:hover { background: #0056b3;}
+    .apple-btn:active { transform: scale(0.98);}
+    .apple-input { background: #f0f0f0; border-radius: 12px; border: none; padding: 12px 16px;}
+    .apple-input:focus { outline: 2px solid #007aff;}
+    .apple-tab-nav { background: #e5e5ea; border-radius: 12px; padding: 4px; display: inline-flex;}
+    .apple-tab-link { padding: 9px 18px; border-radius: 9px; font-weight: 500; color: #555; cursor: pointer;}
+    .apple-tab-link.active { background: #fff; color: #007aff;}
+    .modal-backdrop { backdrop-filter: blur(8px); background: rgba(0,0,0,0.4);}
   </style>
 </head>
-<body class="text-gray-800">
+<body>
 <div id="root"></div>
 <script>
-const TEACHER_EMAILS = ["easonyichenge@gmail.com"];
+const TEACHER_EMAIL = "easonyichenge@gmail.com";
 const firebaseConfig = {
   apiKey: "AIzaSyAWHcrQdzFIfi8x8MJCLu44Wz5dZOLqQoE",
   authDomain: "test-b5451.firebaseapp.com",
   projectId: "test-b5451",
   storageBucket: "test-b5451.appspot.com",
   messagingSenderId: "740966432025",
-  appId: "1:740966432025:web:183468071fcf26c355d988",
-  measurementId: "G-ZZEJ9TGC9D"
+  appId: "1:740966432025:web:183468071fcf26c355d988"
 };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
+
 function getTodayString() {
-    const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
 }
+
 function firestoreOnStudentsChange(cb) {
-    db.collection('attendance').doc('students').onSnapshot(doc => {
-        cb(doc.exists ? doc.data().list : []);
-    });
+  db.collection('attendance').doc('students').onSnapshot(doc => {
+    cb(doc.exists ? doc.data().list : []);
+  });
 }
 async function firestoreSaveStudents(students) {
-    await db.collection('attendance').doc('students').set({ list: students });
+  await db.collection('attendance').doc('students').set({ list: students });
 }
 function firestoreOnAttendanceRecordsChange(cb) {
-    db.collection('attendance').doc('records').onSnapshot(doc => {
-        cb(doc.exists ? doc.data() : {});
-    });
+  db.collection('attendance').doc('records').onSnapshot(doc => {
+    cb(doc.exists ? doc.data() : {});
+  });
 }
 async function firestoreSaveAttendanceRecords(records) {
-    await db.collection('attendance').doc('records').set(records);
+  await db.collection('attendance').doc('records').set(records);
 }
+
+// ========== UI區 ==========
 function showLogin() {
   document.getElementById('root').innerHTML = `
     <div class="flex flex-col items-center justify-center min-h-screen">
       <div class="apple-card max-w-md w-full text-center">
         <h2 class="text-2xl font-bold mb-6">智慧點名系統</h2>
-        <button id="google-login" class="apple-btn apple-btn-primary px-6 py-3 text-xl w-full">以 Google 帳號登入</button>
-        <p class="mt-4 text-gray-500">僅限本班師生登入</p>
+        <button id="google-login" class="apple-btn apple-btn-primary w-full text-lg py-3">以 Google 帳號登入</button>
+        <p class="mt-4 text-gray-500">僅限老師帳號登入</p>
       </div>
     </div>
   `;
@@ -85,59 +80,217 @@ function showLogin() {
     firebase.auth().signInWithRedirect(provider);
   };
 }
-function showStudentQrcodeView() {
-  document.body.innerHTML = `
-<div class="container mx-auto p-4 sm:p-6 max-w-md min-h-screen flex flex-col justify-center">
-    <div class="apple-card text-center">
-        <h2 class="text-2xl font-bold mb-4">產生個人今日 QR Code</h2>
-        <input id="input-myid" class="apple-input w-full mb-3" type="text" placeholder="請輸入學號">
-        <button id="gen-myqrcode-btn" class="apple-btn apple-btn-primary w-full py-3 mb-3">產生個人 QR Code</button>
-        <div id="myqrcode-area" class="hidden">
-            <canvas id="myqrcode-canvas"></canvas>
-            <p class="mt-2 text-gray-600"><span id="myid-show"></span> | <span id="mydate-show"></span></p>
-            <button id="download-myqrcode-btn" class="apple-btn bg-gray-200 mt-4">下載 QR Code</button>
-        </div>
-        <p class="mt-6 text-xs text-gray-500">請輸入正確學號，產生當天有效之個人 QR Code，出示給老師掃描</p>
-    </div>
-</div>
-`;
-    const todayString = getTodayString();
-    const inputMyid = document.getElementById('input-myid');
-    const genMyqrcodeBtn = document.getElementById('gen-myqrcode-btn');
-    const myqrcodeArea = document.getElementById('myqrcode-area');
-    const myidShow = document.getElementById('myid-show');
-    const mydateShow = document.getElementById('mydate-show');
-    const downloadBtn = document.getElementById('download-myqrcode-btn');
-    genMyqrcodeBtn.onclick = function() {
-        const myid = inputMyid.value.trim();
-        if(!myid) { alert("請輸入學號！"); return; }
-        const content = `${myid}|${todayString}`;
-        QRCode.toCanvas(document.getElementById('myqrcode-canvas'), content, { width: 180, margin: 1 });
-        myidShow.textContent = myid;
-        mydateShow.textContent = todayString;
-        myqrcodeArea.classList.remove('hidden');
-    };
-    downloadBtn.onclick = function() {
-        const canvas = document.getElementById('myqrcode-canvas');
-        const link = document.createElement('a');
-        link.download = `我的QR_${inputMyid.value.trim()}_${todayString}.png`;
-        link.href = canvas.toDataURL();
-        link.click();
-    };
-}
-function showStudentView(email) {
+
+function showTeacherView(email) {
   document.getElementById('root').innerHTML = `
-    <div class="apple-card max-w-md mx-auto mt-20 text-center">
-      <h2 class="text-2xl font-bold mb-3">學生簽到</h2>
-      <p>你的帳號 ${email} 不是老師帳號，僅可使用學生功能。</p>
+    <div id="teacher-view">
+      <div class="container mx-auto p-4 sm:p-6 md:p-8 max-w-3xl">
+        <header class="text-center mb-8">
+          <div class="flex justify-end">
+            <span id="teacher-user-email" class="text-sm text-gray-500 mr-2">${email}</span>
+            <button id="logout-btn" class="apple-btn px-3 py-1 bg-gray-200 text-gray-600 hover:bg-gray-300">登出</button>
+          </div>
+          <h1 class="text-4xl font-bold text-gray-900">智慧點名系統</h1>
+          <p id="current-date" class="text-lg text-gray-600 mt-2"></p>
+        </header>
+        <div class="flex justify-center mb-8">
+          <div id="tab-container" class="apple-tab-nav">
+            <a id="tab-roll-call" class="apple-tab-link active">今日點名</a>
+            <a id="tab-roster" class="apple-tab-link">學生名冊</a>
+            <a id="tab-history" class="apple-tab-link">歷史紀錄</a>
+          </div>
+        </div>
+        <main>
+          <div id="page-roll-call">
+            <div class="apple-card">
+              <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+                <div>
+                  <h2 class="text-2xl font-bold">今日點名冊</h2>
+                  <p class="text-gray-500">點擊狀態按鈕來完成點名</p>
+                </div>
+                <div class="text-right flex-shrink-0">
+                  <p class="font-semibold text-green-600">到課: <span id="present-count">0</span></p>
+                  <p class="font-semibold text-red-600">缺席: <span id="absent-count">0</span></p>
+                  <p class="font-semibold text-yellow-600">遲到: <span id="late-count">0</span></p>
+                </div>
+              </div>
+              <div id="roll-call-list" class="space-y-3 max-h-[50vh] overflow-y-auto pr-2"></div>
+            </div>
+          </div>
+          <div id="page-roster" class="hidden">
+            <div class="apple-card">
+              <h2 class="text-2xl font-bold mb-4">管理學生名冊</h2>
+              <div class="flex flex-col sm:flex-row gap-2 mb-4">
+                <input type="text" id="new-student-id" placeholder="學號" class="apple-input w-1/3">
+                <input type="text" id="new-student-name" placeholder="姓名" class="flex-grow apple-input w-2/3">
+                <button id="add-student-btn" class="w-full sm:w-auto apple-btn apple-btn-primary px-5 py-3 flex items-center justify-center gap-2">
+                  新增
+                </button>
+              </div>
+              <div id="roster-list" class="space-y-2 max-h-[50vh] overflow-y-auto pr-2"></div>
+            </div>
+          </div>
+          <div id="page-history" class="hidden">
+            <div class="apple-card">
+              <h2 class="text-2xl font-bold mb-4">查詢歷史點名紀錄</h2>
+              <div id="history-list" class="space-y-2 max-h-[50vh] overflow-y-auto pr-2"></div>
+            </div>
+          </div>
+        </main>
+      </div>
     </div>
   `;
 }
-window.onload = function() {
-  if (new URLSearchParams(window.location.search).get("mode") === "studentqrcode") {
-    showStudentQrcodeView();
-    return;
+
+function runTeacherApp() {
+  const currentDateEl = document.getElementById('current-date');
+  const tabContainer = document.getElementById('tab-container');
+  const tabs = {
+    rollCall: document.getElementById('tab-roll-call'),
+    roster: document.getElementById('tab-roster'),
+    history: document.getElementById('tab-history'),
+  };
+  const pages = {
+    rollCall: document.getElementById('page-roll-call'),
+    roster: document.getElementById('page-roster'),
+    history: document.getElementById('page-history'),
+  };
+  const rollCallList = document.getElementById('roll-call-list');
+  const presentCountEl = document.getElementById('present-count');
+  const absentCountEl = document.getElementById('absent-count');
+  const lateCountEl = document.getElementById('late-count');
+  const rosterList = document.getElementById('roster-list');
+  const newStudentIdInput = document.getElementById('new-student-id');
+  const newStudentNameInput = document.getElementById('new-student-name');
+  const addStudentBtn = document.getElementById('add-student-btn');
+  const historyList = document.getElementById('history-list');
+  let students = [];
+  let attendanceRecords = {};
+  const todayString = getTodayString();
+
+  firestoreOnStudentsChange(list => {
+    students = list;
+    renderRosterList();
+    renderRollCallList();
+  });
+  firestoreOnAttendanceRecordsChange(records => {
+    attendanceRecords = records;
+    if (!attendanceRecords[todayString]) attendanceRecords[todayString] = {};
+    renderRollCallList();
+    renderHistory();
+  });
+
+  function renderRollCallList() {
+    rollCallList.innerHTML = '';
+    if (students.length === 0) {
+      rollCallList.innerHTML = `<p class="text-gray-500 text-center py-4">請先到「學生名冊」新增學生。</p>`;
+      updateCounts(); return;
+    }
+    students.forEach(s => {
+      const status = attendanceRecords[todayString]?.[s.id] || 'unknown';
+      const item = document.createElement('div');
+      item.className = `flex items-center justify-between p-4 bg-gray-50 rounded-xl transition hover:bg-gray-100`;
+      item.innerHTML = `
+        <div>
+          <p class="font-semibold text-lg">${s.name} <span class="text-sm text-gray-500 ml-2">(${s.id})</span></p>
+        </div>
+        <div class="flex space-x-2">
+          <button data-id="${s.id}" data-status="present" class="px-3 py-1 text-sm rounded-full ${status === 'present' ? 'bg-green-500 text-white' : 'bg-gray-200'}">到課</button>
+          <button data-id="${s.id}" data-status="absent" class="px-3 py-1 text-sm rounded-full ${status === 'absent' ? 'bg-red-500 text-white' : 'bg-gray-200'}">缺席</button>
+          <button data-id="${s.id}" data-status="late" class="px-3 py-1 text-sm rounded-full ${status === 'late' ? 'bg-yellow-500 text-white' : 'bg-gray-200'}">遲到</button>
+        </div>
+      `;
+      rollCallList.appendChild(item);
+    });
+    updateCounts();
   }
+  function updateCounts() {
+    const records = Object.values(attendanceRecords[todayString] || {});
+    presentCountEl.textContent = records.filter(s => s === 'present').length;
+    absentCountEl.textContent = records.filter(s => s === 'absent').length;
+    lateCountEl.textContent = records.filter(s => s === 'late').length;
+  }
+  function renderRosterList() {
+    rosterList.innerHTML = '';
+    if (students.length === 0) {
+      rosterList.innerHTML = `<p class="text-gray-500 text-center py-4">目前沒有學生。</p>`; return;
+    }
+    students.forEach(s => {
+      const item = document.createElement('div');
+      item.className = 'flex items-center justify-between p-4 bg-gray-50 rounded-xl';
+      item.innerHTML = `<div>
+        <p class="font-semibold">${s.name} <span class="text-sm text-gray-500 ml-2">(${s.id})</span></p>
+      </div>
+      <div>
+        <button data-id="${s.id}" class="delete-student-btn text-red-500 hover:text-red-700">刪除</button>
+      </div>`;
+      rosterList.appendChild(item);
+    });
+  }
+  function renderHistory() {
+    historyList.innerHTML = '';
+    const dates = Object.keys(attendanceRecords).sort();
+    if (dates.length === 0) {
+      historyList.innerHTML = `<p class="text-gray-500 text-center py-4">目前無任何歷史紀錄。</p>`;
+      return;
+    }
+    dates.forEach(date => {
+      const rec = attendanceRecords[date] || {};
+      const line = document.createElement('div');
+      line.className = "p-2 bg-gray-100 rounded mb-2";
+      line.innerHTML = `<b>${date}</b><br>` + students.map(s =>
+        `<span class="inline-block mr-3">${s.name}(${s.id}): <span class="${
+          rec[s.id]==='present' ? 'text-green-600' : rec[s.id]==='absent' ? 'text-red-600' : rec[s.id]==='late' ? 'text-yellow-600' : 'text-gray-400'
+        }">${rec[s.id]||'--'}</span></span>`
+      ).join('');
+      historyList.appendChild(line);
+    });
+  }
+  rollCallList.addEventListener('click', async (e) => {
+    const btn = e.target.closest('button[data-status]');
+    if (btn) {
+      if (!attendanceRecords[todayString]) attendanceRecords[todayString] = {};
+      attendanceRecords[todayString][btn.dataset.id] = btn.dataset.status;
+      await firestoreSaveAttendanceRecords(attendanceRecords);
+    }
+  });
+  rosterList.addEventListener('click', async (e) => {
+    const btn = e.target.closest('.delete-student-btn');
+    if (btn) {
+      const studentId = btn.dataset.id;
+      students = students.filter(s => s.id !== studentId);
+      await firestoreSaveStudents(students);
+    }
+  });
+  addStudentBtn.addEventListener('click', async () => {
+    const id = newStudentIdInput.value.trim();
+    const name = newStudentNameInput.value.trim();
+    if (id && name) {
+      if (students.some(s => s.id === id)) {
+        alert("已有相同學號的學生！");
+        return;
+      }
+      students.push({ id, name });
+      newStudentIdInput.value = '';
+      newStudentNameInput.value = '';
+      await firestoreSaveStudents(students);
+    }
+  });
+  currentDateEl.textContent = `${todayString.replace(/-/g, " 年 ").replace(/$/, " 日").replace(/-(\d+) 年 /, " 月 ")}`;
+  tabContainer.addEventListener('click', (e) => {
+    if(e.target.classList.contains('apple-tab-link')) {
+      Object.values(tabs).forEach(t => t.classList.remove('active'));
+      Object.values(pages).forEach(p => p.classList.add('hidden'));
+      e.target.classList.add('active');
+      const pageId = 'page-' + e.target.id.split('-').slice(1).join('-');
+      const pageElement = document.getElementById(pageId);
+      if (pageElement) pageElement.classList.remove('hidden');
+    }
+  });
+}
+
+// ========== 登入流程 ==========
+window.onload = function() {
   firebase.auth().getRedirectResult().then(function(result) {
     // 登入後會觸發 onAuthStateChanged
   }).catch(function(error) {
@@ -146,474 +299,37 @@ window.onload = function() {
   firebase.auth().onAuthStateChanged(function(user) {
     if (!user) { showLogin(); return; }
     const email = (user.email || '').toLowerCase();
-    console.log("user.email:", email);
-    if (email === "easonyichenge@gmail.com") {
-      document.getElementById("root").innerHTML = teacherAppHtml(email);
+    if (email === TEACHER_EMAIL) {
+      showTeacherView(email);
       runTeacherApp();
     } else {
-      showStudentView(email);
+      document.getElementById('root').innerHTML = `<div class="apple-card max-w-md mx-auto mt-20 text-center"><h2 class="text-2xl font-bold mb-3">非授權帳號</h2><p>你的帳號 ${email} 不是老師帳號，無法使用此系統。</p></div>`;
     }
   });
 };
+
 document.addEventListener("click", function(e){
-    if(e.target && e.target.id === "logout-btn") {
-        firebase.auth().signOut().then(()=>location.reload());
-    }
+  if(e.target && e.target.id === "logout-btn") {
+    firebase.auth().signOut().then(()=>location.reload());
+  }
 });
-function teacherAppHtml(email) {
-  return `
-  <div id="teacher-view">
-    <div class="container mx-auto p-4 sm:p-6 md:p-8 max-w-3xl">
-        <header class="text-center mb-8">
-            <div class="flex justify-end">
-                <span id="teacher-user-email" class="text-sm text-gray-500 mr-2">${email}</span>
-                <button id="logout-btn" class="apple-btn px-3 py-1 bg-gray-200 text-gray-600 hover:bg-gray-300">登出</button>
-            </div>
-            <h1 class="text-4xl font-bold text-gray-900">智慧點名系統</h1>
-            <p id="current-date" class="text-lg text-gray-600 mt-2"></p>
-        </header>
-        <div class="flex justify-center mb-8">
-            <div id="tab-container" class="apple-tab-nav">
-                <a id="tab-roll-call" class="apple-tab-link active">今日點名</a>
-                <a id="tab-roster" class="apple-tab-link">學生名冊</a>
-                <a id="tab-history" class="apple-tab-link">歷史紀錄</a>
-            </div>
-        </div>
-        <main>
-            <div id="page-roll-call">
-                <div class="apple-card">
-                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-                            <div>
-                                <h2 class="text-2xl font-bold">今日點名冊</h2>
-                                <p class="text-gray-500">點擊狀態按鈕或掃描學生 QR Code 來完成點名</p>
-                            </div>
-                            <div class="text-right flex-shrink-0">
-                                <p class="font-semibold text-green-600">到課: <span id="present-count">0</span></p>
-                                <p class="font-semibold text-red-600">缺席: <span id="absent-count">0</span></p>
-                                <p class="font-semibold text-yellow-600">遲到: <span id="late-count">0</span></p>
-                            </div>
-                    </div>
-                    <div class="flex flex-col md:flex-row gap-3 mb-6">
-                        <button id="scan-qr-btn" class="w-full apple-btn apple-btn-primary px-4 py-3 flex items-center justify-center gap-2">
-                            <ion-icon name="camera-outline" class="text-2xl"></ion-icon> 掃描學生 QR Code 點名
-                        </button>
-                    </div>
-                    <div id="roll-call-list" class="space-y-3 max-h-[50vh] overflow-y-auto pr-2"></div>
-                </div>
-            </div>
-            <div id="page-roster" class="hidden">
-                <div class="apple-card">
-                    <h2 class="text-2xl font-bold mb-4">管理學生名冊</h2>
-                    <button id="public-qr-btn" class="apple-btn bg-gray-800 text-white px-4 py-3 flex items-center justify-center gap-2 mb-4">
-                        <ion-icon name="qr-code-outline" class="text-2xl"></ion-icon> 產生全班共用學生QR Code
-                    </button>
-                    <div class="flex flex-col sm:flex-row gap-2 mb-4">
-                        <input type="text" id="new-student-id" placeholder="學號" class="apple-input w-1/3">
-                        <input type="text" id="new-student-name" placeholder="姓名" class="flex-grow apple-input w-2/3">
-                        <button id="add-student-btn" class="w-full sm:w-auto apple-btn apple-btn-primary px-5 py-3 flex items-center justify-center gap-2">
-                            <ion-icon name="add-outline"></ion-icon> 新增
-                        </button>
-                    </div>
-                    <div id="roster-list" class="space-y-2 max-h-[50vh] overflow-y-auto pr-2"></div>
-                </div>
-            </div>
-            <div id="page-history" class="hidden">
-                <div class="apple-card">
-                    <h2 class="text-2xl font-bold mb-4">查詢歷史點名紀錄</h2>
-                    <div class="flex gap-2 items-center mb-4 justify-center">
-                        <button id="history-prev-btn" class="apple-btn bg-gray-100 shadow hover:bg-gray-200 w-10 h-10 flex items-center justify-center rounded-full text-2xl p-0 transition duration-150"><ion-icon name="chevron-back-outline"></ion-icon></button>
-                        <div class="relative flex items-center">
-                            <span class="absolute left-3 text-gray-400 text-xl pointer-events-none"><ion-icon name="calendar-outline"></ion-icon></span>
-                            <input type="text" id="history-date-input"
-                                class="apple-input text-center pl-10 pr-3 w-40 font-semibold text-lg border border-gray-300 shadow focus:border-blue-500 focus:ring-2 focus:ring-blue-200 rounded-xl transition"
-                                readonly>
-                        </div>
-                        <button id="history-next-btn" class="apple-btn bg-gray-100 shadow hover:bg-gray-200 w-10 h-10 flex items-center justify-center rounded-full text-2xl p-0 transition duration-150"><ion-icon name="chevron-forward-outline"></ion-icon></button>
-                        <button id="history-today-btn" class="apple-btn bg-white border border-gray-300 shadow hover:bg-blue-50 px-4 py-2 rounded-xl ml-2 font-semibold text-gray-700" type="button">
-                            今天
-                        </button>
-                    </div>
-                    <div id="history-list" class="space-y-2 max-h-[50vh] overflow-y-auto pr-2"></div>
-                </div>
-            </div>
-        </main>
-    </div>
-</div>
-  `;
+
+// Firestore 快取/監聽
+function firestoreOnStudentsChange(cb) {
+  db.collection('attendance').doc('students').onSnapshot(doc => {
+    cb(doc.exists ? doc.data().list : []);
+  });
 }
-function runTeacherApp() {
-    const teacherView = document.getElementById('teacher-view');
-    const currentDateEl = document.getElementById('current-date');
-    const tabContainer = document.getElementById('tab-container');
-    const tabs = {
-        rollCall: document.getElementById('tab-roll-call'),
-        roster: document.getElementById('tab-roster'),
-        history: document.getElementById('tab-history'),
-    };
-    const pages = {
-        rollCall: document.getElementById('page-roll-call'),
-        roster: document.getElementById('page-roster'),
-        history: document.getElementById('page-history'),
-    };
-    const rollCallList = document.getElementById('roll-call-list');
-    const presentCountEl = document.getElementById('present-count');
-    const absentCountEl = document.getElementById('absent-count');
-    const lateCountEl = document.getElementById('late-count');
-    const rosterList = document.getElementById('roster-list');
-    const newStudentIdInput = document.getElementById('new-student-id');
-    const newStudentNameInput = document.getElementById('new-student-name');
-    const addStudentBtn = document.getElementById('add-student-btn');
-    const publicQrBtn = document.getElementById('public-qr-btn');
-    const historyDateInput = document.getElementById('history-date-input');
-    const historyPrevBtn = document.getElementById('history-prev-btn');
-    const historyNextBtn = document.getElementById('history-next-btn');
-    const historyTodayBtn = document.getElementById('history-today-btn');
-    const historyList = document.getElementById('history-list');
-    const scanQrBtn = document.getElementById('scan-qr-btn');
-    let students = [];
-    let attendanceRecords = {};
-    const todayString = getTodayString();
-    let historyDates = [];
-    let selectedHistoryDate = "";
-    firestoreOnStudentsChange(list => {
-        students = list;
-        renderRosterList();
-        renderRollCallList();
-    });
-    firestoreOnAttendanceRecordsChange(records => {
-        attendanceRecords = records;
-        if (!attendanceRecords[todayString]) attendanceRecords[todayString] = {};
-        renderRollCallList();
-        renderHistory();
-    });
-    function renderRollCallList() {
-        rollCallList.innerHTML = '';
-        if (students.length === 0) {
-            rollCallList.innerHTML = `<p class="text-gray-500 text-center py-4">請先到「學生名冊」新增學生。</p>`;
-            updateCounts(); return;
-        }
-        students.forEach(s => {
-            const status = attendanceRecords[todayString]?.[s.id] || 'unknown';
-            const item = document.createElement('div');
-            item.className = `flex items-center justify-between p-4 bg-gray-50 rounded-xl transition hover:bg-gray-100`;
-            item.innerHTML = `
-                <div>
-                    <p class="font-semibold text-lg">${s.name} <span class="text-sm text-gray-500 ml-2">(${s.id})</span></p>
-                </div>
-                <div class="flex space-x-2">
-                    <button data-id="${s.id}" data-status="present" class="px-3 py-1 text-sm rounded-full ${status === 'present' ? 'bg-green-500 text-white' : 'bg-gray-200'}">到課</button>
-                    <button data-id="${s.id}" data-status="absent" class="px-3 py-1 text-sm rounded-full ${status === 'absent' ? 'bg-red-500 text-white' : 'bg-gray-200'}">缺席</button>
-                    <button data-id="${s.id}" data-status="late" class="px-3 py-1 text-sm rounded-full ${status === 'late' ? 'bg-yellow-500 text-white' : 'bg-gray-200'}">遲到</button>
-                    <button data-id="${s.id}" class="show-today-qr-btn apple-btn bg-gray-200 text-gray-800 px-2 py-1 text-xs"><ion-icon name="qr-code-outline"></ion-icon>今日QR</button>
-                </div>
-            `;
-            rollCallList.appendChild(item);
-        });
-        updateCounts();
-    }
-    function updateCounts() {
-        const records = Object.values(attendanceRecords[todayString] || {});
-        presentCountEl.textContent = records.filter(s => s === 'present').length;
-        absentCountEl.textContent = records.filter(s => s === 'absent').length;
-        lateCountEl.textContent = records.filter(s => s === 'late').length;
-    }
-    function renderRosterList() {
-        rosterList.innerHTML = '';
-        if (students.length === 0) {
-            rosterList.innerHTML = `<p class="text-gray-500 text-center py-4">目前沒有學生。</p>`; return;
-        }
-        students.forEach(s => {
-            const item = document.createElement('div');
-            item.className = 'flex items-center justify-between p-4 bg-gray-50 rounded-xl';
-            item.innerHTML = `<div>
-                <p class="font-semibold">${s.name} <span class="text-sm text-gray-500 ml-2">(${s.id})</span></p>
-            </div>
-            <div class="flex items-center gap-2">
-                <button class="show-today-qr-btn apple-btn bg-gray-300 px-3 py-1 text-sm" data-id="${s.id}" data-name="${s.name}"><ion-icon name="qr-code-outline"></ion-icon> 今日 QR</button>
-                <button data-id="${s.id}" class="delete-student-btn text-red-500 hover:text-red-700"><ion-icon name="trash-outline" class="text-xl"></ion-icon></button>
-            </div>`;
-            rosterList.appendChild(item);
-        });
-    }
-    function renderHistory() {
-        historyDates = Object.keys(attendanceRecords).sort((a, b) => new Date(a) - new Date(b));
-        if (historyDates.length === 0) {
-            historyDateInput.value = "";
-            renderHistoryForDate("");
-            if (window.historyDatePicker) window.historyDatePicker.set('enable', []);
-            return;
-        }
-        selectedHistoryDate = selectedHistoryDate && historyDates.includes(selectedHistoryDate) ? selectedHistoryDate : historyDates[historyDates.length-1];
-        historyDateInput.value = selectedHistoryDate;
-        renderHistoryForDate(selectedHistoryDate);
-        if (window.historyDatePicker) window.historyDatePicker.set('enable', historyDates);
-    }
-    function renderHistoryForDate(date) {
-        historyList.innerHTML = '';
-        if (!date || !attendanceRecords[date]) {
-            historyList.innerHTML = `<p class="text-gray-500 text-center py-4">此日期無紀錄。</p>`;
-            return;
-        }
-        const records = attendanceRecords[date] || {};
-        const studentIds = Object.keys(records);
-        if (studentIds.length === 0) {
-            historyList.innerHTML = `<p class="text-gray-500 text-center py-4">此日期無紀錄。</p>`; return;
-        }
-        students.filter(s => studentIds.includes(s.id)).forEach(s => {
-            const status = records[s.id];
-            const item = document.createElement('div');
-            item.className = 'flex items-center justify-between p-4 bg-gray-50 rounded-xl';
-            item.innerHTML = `
-                <div>
-                    <p class="font-semibold">${s.name} <span class="text-sm text-gray-500 ml-2">(${s.id})</span></p>
-                </div>
-                <div class="flex space-x-2">
-                    <button data-id="${s.id}" data-status="present" data-date="${date}" class="history-status-btn px-3 py-1 text-sm rounded-full ${status === 'present' ? 'bg-green-500 text-white' : 'bg-gray-200'}">到課</button>
-                    <button data-id="${s.id}" data-status="absent" data-date="${date}" class="history-status-btn px-3 py-1 text-sm rounded-full ${status === 'absent' ? 'bg-red-500 text-white' : 'bg-gray-200'}">缺席</button>
-                    <button data-id="${s.id}" data-status="late" data-date="${date}" class="history-status-btn px-3 py-1 text-sm rounded-full ${status === 'late' ? 'bg-yellow-500 text-white' : 'bg-gray-200'}">遲到</button>
-                </div>
-            `;
-            historyList.appendChild(item);
-        });
-    }
-    window.historyDatePicker = flatpickr(historyDateInput, {
-        dateFormat: "Y-m-d",
-        disableMobile: true,
-        enable: [],
-        allowInput: false,
-        clickOpens: true,
-        onOpen: function(selectedDates, dateStr, instance){
-            setTimeout(()=>{
-                if(instance.selectedDateElem) instance.selectedDateElem.focus();
-            },10);
-        },
-        onChange: function(selectedDates, dateStr) {
-            if (dateStr && historyDates.includes(dateStr)) {
-                selectedHistoryDate = dateStr;
-                renderHistoryForDate(dateStr);
-            }
-        }
-    });
-    historyPrevBtn.addEventListener('click', function(){
-        if (!selectedHistoryDate || historyDates.length === 0) return;
-        let idx = historyDates.indexOf(selectedHistoryDate);
-        if (idx > 0) {
-            selectedHistoryDate = historyDates[idx-1];
-            historyDateInput.value = selectedHistoryDate;
-            renderHistoryForDate(selectedHistoryDate);
-        }
-    });
-    historyNextBtn.addEventListener('click', function(){
-        if (!selectedHistoryDate || historyDates.length === 0) return;
-        let idx = historyDates.indexOf(selectedHistoryDate);
-        if (idx < historyDates.length-1) {
-            selectedHistoryDate = historyDates[idx+1];
-            historyDateInput.value = selectedHistoryDate;
-            renderHistoryForDate(selectedHistoryDate);
-        }
-    });
-    historyTodayBtn.addEventListener('click', function() {
-        if (historyDates.length === 0) return;
-        let todayStr = getTodayString();
-        if (!historyDates.includes(todayStr)) todayStr = historyDates[historyDates.length-1];
-        selectedHistoryDate = todayStr;
-        historyDateInput.value = todayStr;
-        renderHistoryForDate(todayStr);
-    });
-    historyList.addEventListener('click', async function(e){
-        const btn = e.target.closest('.history-status-btn');
-        if (btn) {
-            const date = btn.getAttribute('data-date');
-            const id = btn.getAttribute('data-id');
-            const status = btn.getAttribute('data-status');
-            if (!attendanceRecords[date]) attendanceRecords[date] = {};
-            attendanceRecords[date][id] = status;
-            await firestoreSaveAttendanceRecords(attendanceRecords);
-        }
-    });
-    rollCallList.addEventListener('click', async (e) => {
-        const btn = e.target.closest('button[data-status]');
-        if (btn) {
-            attendanceRecords[todayString][btn.dataset.id] = btn.dataset.status;
-            await firestoreSaveAttendanceRecords(attendanceRecords);
-        }
-        const qrBtn = e.target.closest('.show-today-qr-btn');
-        if (qrBtn) showStudentTodayQr(qrBtn.dataset.id);
-    });
-    rosterList.addEventListener('click', async (e) => {
-        const btn = e.target.closest('.delete-student-btn');
-        if (btn) {
-            const studentId = btn.dataset.id;
-            const student = students.find(s => s.id === studentId);
-            showConfirm(`確定要刪除「${student.name}」嗎？`, async () => {
-                students = students.filter(s => s.id !== studentId);
-                Object.keys(attendanceRecords).forEach(date => delete attendanceRecords[date][studentId]);
-                await firestoreSaveStudents(students);
-                await firestoreSaveAttendanceRecords(attendanceRecords);
-            });
-        }
-        const qrBtn = e.target.closest('.show-today-qr-btn');
-        if (qrBtn) showStudentTodayQr(qrBtn.dataset.id);
-    });
-    addStudentBtn.addEventListener('click', async () => {
-        const id = newStudentIdInput.value.trim();
-        const name = newStudentNameInput.value.trim();
-        if (id && name) {
-            if (students.some(s => s.id === id)) {
-                alert("已有相同學號的學生！");
-                return;
-            }
-            students.push({ id, name });
-            newStudentIdInput.value = '';
-            newStudentNameInput.value = '';
-            await firestoreSaveStudents(students);
-        }
-    });
-    publicQrBtn.addEventListener('click', function() {
-        const modalEl = document.createElement('div');
-        modalEl.className = "w-full max-w-xs text-center";
-        modalEl.innerHTML = `
-            <div class="flex justify-between items-center pb-3">
-                <h3 class="text-lg font-semibold">全班共用學生 QR Code</h3>
-                <button class="modal-close-btn text-gray-400 hover:text-gray-600"><ion-icon name="close-outline" class="text-2xl"></ion-icon></button>
-            </div>
-            <div class="bg-white p-4 rounded-lg inline-block">
-                <canvas id="public-qr-canvas"></canvas>
-            </div>
-            <p class="mt-4 text-gray-600">學生掃描此 QR Code 進入輸入學號產生個人今日 QR Code 頁面</p>
-            <p class="mt-2 text-xs text-gray-500 break-all">${location.origin + location.pathname}?mode=studentqrcode</p>
-        `;
-        openModal(modalEl);
-        const url = `${location.origin + location.pathname}?mode=studentqrcode`;
-        QRCode.toCanvas(document.getElementById('public-qr-canvas'), url, { width: 256, margin: 1 });
-    });
-    scanQrBtn.addEventListener('click', () => {
-        const modalEl = document.createElement('div');
-        modalEl.className = "w-full max-w-xs";
-        modalEl.innerHTML = `
-            <div class="flex justify-between items-center pb-3">
-                <h3 class="text-lg font-semibold">掃描學生 QR Code</h3>
-                <button class="modal-close-btn text-gray-400 hover:text-gray-600"><ion-icon name="close-outline" class="text-2xl"></ion-icon></button>
-            </div>
-            <div id="qr-reader" style="width: 280px;" class="mx-auto"></div>
-            <p id="qr-status-msg" class="mt-3 text-center text-sm text-gray-700"></p>
-        `;
-        let html5Qr;
-        const closeModal = openModal(modalEl, { onClose: ()=>{ if(html5Qr) html5Qr.stop(); } });
-        const qrStatusMsg = modalEl.querySelector('#qr-status-msg');
-        html5Qr = new Html5Qrcode("qr-reader");
-        html5Qr.start(
-            { facingMode: "environment" },
-            { fps: 10, qrbox: 200 },
-            code => {
-                let [id, date] = String(code).trim().split('|');
-                if (!id || !date) {
-                    qrStatusMsg.textContent = "QR Code 格式錯誤！";
-                    return;
-                }
-                id = id.trim();
-                date = date.trim();
-                if (date !== todayString) {
-                    qrStatusMsg.textContent = `此 QR Code 僅限 ${todayString} 使用！`;
-                    return;
-                }
-                const stu = students.find(s => s.id.trim() === id);
-                if (!stu) {
-                    qrStatusMsg.textContent = "無法辨識此學號，請確認 QR Code 是否正確。";
-                    return;
-                }
-                attendanceRecords[todayString][stu.id] = 'present';
-                firestoreSaveAttendanceRecords(attendanceRecords);
-                qrStatusMsg.textContent = `✅ 已成功點名：${stu.name} (${stu.id})`;
-                setTimeout(() => { closeModal(); }, 1200);
-                html5Qr.stop();
-            },
-            err => {}
-        ).catch(e=>{qrStatusMsg.textContent="無法啟動相機："+e;});
-    });
-    function openModal(modalEl, options = {}) {
-        let modalContainer = document.getElementById('modal-container');
-        if (!modalContainer) {
-            modalContainer = document.createElement('div');
-            modalContainer.id = 'modal-container';
-            document.body.appendChild(modalContainer);
-        }
-        modalContainer.innerHTML = '';
-        const backdrop = document.createElement('div');
-        backdrop.className = 'modal-backdrop fixed inset-0';
-        modalContainer.appendChild(backdrop);
-        const card = document.createElement('div');
-        card.className = 'apple-card relative';
-        card.appendChild(modalEl);
-        modalContainer.appendChild(card);
-        modalEl.classList.remove('hidden');
-        modalContainer.classList.remove('hidden');
-        modalContainer.classList.add('flex', 'items-center', 'justify-center', 'p-4');
-        const closeModal = () => {
-            modalContainer.innerHTML = '';
-            modalContainer.classList.add('hidden');
-            modalContainer.classList.remove('flex', 'items-center', 'justify-center', 'p-4');
-            if(options.onClose) options.onClose();
-        };
-        backdrop.addEventListener('click', closeModal);
-        modalContainer.querySelectorAll('.modal-close-btn').forEach(btn => btn.addEventListener('click', closeModal));
-        return closeModal;
-    }
-    function showConfirm(title, onOk) {
-        const modalEl = document.createElement('div');
-        modalEl.className = "w-full max-w-sm";
-        modalEl.innerHTML = `
-            <h3 class="text-lg font-semibold text-center mb-4">${title}</h3>
-            <div class="flex justify-center gap-3">
-                <button id="confirm-btn-cancel" class="w-full apple-btn bg-gray-200 text-gray-800 py-2">取消</button>
-                <button id="confirm-btn-ok" class="w-full apple-btn apple-btn-primary py-2">確定</button>
-            </div>
-        `;
-        const close = openModal(modalEl);
-        modalEl.querySelector('#confirm-btn-ok').addEventListener('click', () => { onOk(); close(); });
-        modalEl.querySelector('#confirm-btn-cancel').addEventListener('click', close);
-    }
-    function showStudentTodayQr(studentId) {
-        const student = students.find(s => s.id === studentId);
-        if (!student) return;
-        const modalEl = document.createElement('div');
-        modalEl.className = "w-full max-w-xs text-center";
-        modalEl.innerHTML = `
-            <div class="flex justify-between items-center pb-3">
-                <h3 class="text-lg font-semibold">學生今日 QR Code</h3>
-                <button class="modal-close-btn text-gray-400 hover:text-gray-600"><ion-icon name="close-outline" class="text-2xl"></ion-icon></button>
-            </div>
-            <div class="bg-white p-4 rounded-lg inline-block">
-                <canvas id="student-qr-canvas"></canvas>
-            </div>
-            <p class="mt-2"><b>${student.name} (${student.id})</b></p>
-            <p class="mt-2 text-xs text-gray-500">內容：${student.id}|${todayString}</p>
-            <button id="download-qr-btn" class="apple-btn apple-btn-primary px-4 py-2 mt-3">下載 QR Code</button>
-        `;
-        openModal(modalEl);
-        QRCode.toCanvas(document.getElementById('student-qr-canvas'), `${student.id}|${todayString}`, { width: 180, margin: 1 });
-        modalEl.querySelector('#download-qr-btn').addEventListener('click', () => {
-            const canvas = document.getElementById('student-qr-canvas');
-            const link = document.createElement('a');
-            link.download = `${student.name}_${student.id}_QRCode.png`;
-            link.href = canvas.toDataURL();
-            link.click();
-        });
-    }
-    currentDateEl.textContent = `${todayString.replace(/-/g, " 年 ").replace(/$/, " 日").replace(/-(\d+) 年 /, " 月 ")}`;
-    tabContainer.addEventListener('click', (e) => {
-        if(e.target.classList.contains('apple-tab-link')) {
-            Object.values(tabs).forEach(t => t.classList.remove('active'));
-            Object.values(pages).forEach(p => p.classList.add('hidden'));
-            e.target.classList.add('active');
-            const pageId = 'page-' + e.target.id.split('-').slice(1).join('-');
-            const pageElement = document.getElementById(pageId);
-            if (pageElement) {
-                pageElement.classList.remove('hidden');
-            }
-            if(pageId === 'page-history') renderHistory();
-        }
-    });
+async function firestoreSaveStudents(students) {
+  await db.collection('attendance').doc('students').set({ list: students });
+}
+function firestoreOnAttendanceRecordsChange(cb) {
+  db.collection('attendance').doc('records').onSnapshot(doc => {
+    cb(doc.exists ? doc.data() : {});
+  });
+}
+async function firestoreSaveAttendanceRecords(records) {
+  await db.collection('attendance').doc('records').set(records);
 }
 </script>
 </body>
