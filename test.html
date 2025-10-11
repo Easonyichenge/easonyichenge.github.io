@@ -266,7 +266,18 @@
             // 初始化函式
             function initialize() {
                 const urlParams = new URLSearchParams(window.location.search);
+                // 新增：如果網址帶有 students 參數（base64 url safe），解碼成學生名冊資料
                 if (urlParams.get('mode') === 'student') {
+                    const studentsParam = urlParams.get('students');
+                    if (studentsParam) {
+                        try {
+                            // base64解碼+URI解碼
+                            const decoded = decodeURIComponent(atob(studentsParam));
+                            students = JSON.parse(decoded);
+                        } catch (e) {
+                            students = [];
+                        }
+                    }
                     setupStudentView();
                 } else {
                     setupTeacherView();
@@ -296,8 +307,8 @@
             function loadData(silent = false) {
                 const storedStudents = localStorage.getItem('students');
                 const storedRecords = localStorage.getItem('attendanceRecords');
-                if (storedStudents) students = JSON.parse(storedStudents);
-                else if (!silent) {
+                if (!students.length && storedStudents) students = JSON.parse(storedStudents);
+                else if (!silent && !students.length) {
                     students = [ { id: 1, name: '王小明' }, { id: 2, name: '陳大文' }, { id: 3, name: '林美麗' } ];
                 }
                 if (storedRecords) attendanceRecords = JSON.parse(storedRecords);
@@ -467,7 +478,7 @@
             async function callGeminiAPI(prompt) {
                 const apiKey = ""; // <-- 請在此處填入您的 Google Gemini API 金鑰
                 const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
-                const systemPrompt = "你是一位友善且經驗豐富的助教，專門協助老師處理班級事務。請根據提供的點名紀錄，用繁體中文、條列式的方式，提供一個簡潔的總結和具體的關懷建議。";
+                const systemPrompt = "你是一位友善且經驗豐富的助教，專門協助老師處理班級事務。請根據提供的點名紀錄，用繁體中文、條列式的方式，提供分析建議。";
                 const payload = { contents: [{ parts: [{ text: prompt }] }], systemInstruction: { parts: [{ text: systemPrompt }] }, };
                 try {
                     const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
@@ -554,15 +565,23 @@
                     }
                 });
 
-                const prompt = `點名紀錄：總人數: ${students.length}人。 到課: ${present.join(', ') || '無'}。 缺席: ${absent.join(', ') || '無'}。 遲到: ${late.join(', ') || '無'}。 請提供總結與建議。`;
+                const prompt = `點名紀錄：總人數: ${students.length}人。 到課: ${present.join(', ') || '無'}。 缺席: ${absent.join(', ') || '無'}。 遲到: ${late.join(', ') || '無'}。`;
                 const resultText = await callGeminiAPI(prompt);
                 document.getElementById('gemini-loading').style.display = 'none';
                 document.getElementById('gemini-result').textContent = resultText;
             });
             
+            // 產生帶有學生名冊的 QR Code
             qrcodeCheckinBtn.addEventListener('click', () => {
                 openModal(qrcodeModal);
-                const url = `${window.location.href.split('?')[0]}?mode=student`;
+                // 新增：編碼學生名冊為 base64，附加到網址參數
+                let studentsBase64 = "";
+                try {
+                    studentsBase64 = btoa(encodeURIComponent(JSON.stringify(students)));
+                } catch (e) {
+                    studentsBase64 = "";
+                }
+                const url = `${window.location.href.split('?')[0]}?mode=student${studentsBase64 ? `&students=${studentsBase64}` : ""}`;
                 QRCode.toCanvas(document.getElementById('qrcode-canvas'), url, { width: 256, margin: 1 });
             });
             
