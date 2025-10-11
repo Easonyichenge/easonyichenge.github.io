@@ -17,106 +17,28 @@
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
     <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", "Noto Sans TC", Roboto, "Helvetica Neue", Arial, sans-serif;
-            background-color: #f5f5f7;
-            -webkit-font-smoothing: antialiased;
-            -moz-osx-font-smoothing: grayscale;
-        }
-        .apple-card {
-            background-color: #ffffff;
-            border-radius: 20px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-            padding: 24px;
-        }
-        .apple-btn {
-            border-radius: 12px;
-            font-weight: 600;
-            transition: all 0.2s ease-in-out;
-            border: none;
-            cursor: pointer;
-        }
-        .apple-btn-primary {
-            background-color: #007aff;
-            color: white;
-        }
-        .apple-btn-primary:hover {
-            background-color: #0056b3;
-        }
-        .apple-btn:active {
-            transform: scale(0.96);
-        }
-        .apple-input {
-            background-color: #f0f0f0;
-            border: none;
-            border-radius: 12px;
-            padding: 12px 16px;
-        }
-        .apple-input:focus {
-            outline: none;
-            box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.3);
-        }
-        .apple-tab-nav {
-            background-color: #e5e5ea;
-            border-radius: 12px;
-            padding: 4px;
-            display: inline-flex;
-        }
-        .apple-tab-link {
-            padding: 8px 16px;
-            border-radius: 9px;
-            font-weight: 500;
-            color: #555;
-            cursor: pointer;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-        .apple-tab-link.active {
-            background-color: white;
-            color: #000;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        }
-        .modal-backdrop {
-            backdrop-filter: blur(8px);
-            background-color: rgba(0,0,0,0.4);
-        }
-        .flatpickr-calendar {
-            border-radius: 18px !important;
-            box-shadow: 0 8px 36px 0 rgba(0,0,0,0.18) !important;
-            font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", "Noto Sans TC", Roboto, "Helvetica Neue", Arial, sans-serif !important;
-            border: none !important;
-        }
-        .flatpickr-months .flatpickr-month {
-            background: #f5f5f7 !important;
-            border-radius: 18px 18px 0 0 !important;
-        }
-        .flatpickr-day.selected, .flatpickr-day.startRange, .flatpickr-day.endRange, .flatpickr-day.selected.inRange, .flatpickr-day.startRange.inRange, .flatpickr-day.endRange.inRange, .flatpickr-day.selected:focus, .flatpickr-day.selected:active {
-            background: #007aff !important;
-            color: #fff !important;
-            border-radius: 50% !important;
-            font-weight: 700;
-            box-shadow: 0 4px 12px #007aff55;
-            transform: scale(1.06);
-        }
-        .flatpickr-day.today {
-            border-color: #007aff !important;
-            font-weight: 600;
-            background: #e5f0ff !important;
-        }
-        .flatpickr-day:hover, .flatpickr-day:focus {
-            background: #e5e5ea !important;
-            border-radius: 50% !important;
-        }
-        .flatpickr-current-month input.cur-year {
-            font-weight: 600 !important;
-        }
-        .batch-qr-modal-content {
-            max-height: 65vh;
-            overflow-y: auto;
-        }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", "Noto Sans TC", Roboto, "Helvetica Neue", Arial, sans-serif; background-color: #f5f5f7; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;}
+        .apple-card { background-color: #ffffff; border-radius: 20px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08); padding: 24px;}
+        .apple-btn { border-radius: 12px; font-weight: 600; transition: all 0.2s ease-in-out; border: none; cursor: pointer;}
+        .apple-btn-primary { background-color: #007aff; color: white;}
+        .apple-btn-primary:hover { background-color: #0056b3;}
+        .apple-btn:active { transform: scale(0.96);}
+        .apple-input { background-color: #f0f0f0; border: none; border-radius: 12px; padding: 12px 16px;}
+        .apple-input:focus { outline: none; box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.3);}
+        .apple-tab-nav { background-color: #e5e5ea; border-radius: 12px; padding: 4px; display: inline-flex;}
+        .apple-tab-link { padding: 8px 16px; border-radius: 9px; font-weight: 500; color: #555; cursor: pointer; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);}
+        .apple-tab-link.active { background-color: white; color: #000; box-shadow: 0 1px 3px rgba(0,0,0,0.1);}
+        .modal-backdrop { backdrop-filter: blur(8px); background-color: rgba(0,0,0,0.4);}
+        .flatpickr-calendar { border-radius: 18px !important; box-shadow: 0 8px 36px 0 rgba(0,0,0,0.18) !important; font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", "Noto Sans TC", Roboto, "Helvetica Neue", Arial, sans-serif !important; border: none !important;}
+        .flatpickr-months .flatpickr-month { background: #f5f5f7 !important; border-radius: 18px 18px 0 0 !important;}
+        .flatpickr-day.selected, .flatpickr-day.startRange, .flatpickr-day.endRange, .flatpickr-day.selected.inRange, .flatpickr-day.startRange.inRange, .flatpickr-day.endRange.inRange, .flatpickr-day.selected:focus, .flatpickr-day.selected:active { background: #007aff !important; color: #fff !important; border-radius: 50% !important; font-weight: 700; box-shadow: 0 4px 12px #007aff55; transform: scale(1.06);}
+        .flatpickr-day.today { border-color: #007aff !important; font-weight: 600; background: #e5f0ff !important;}
+        .flatpickr-day:hover, .flatpickr-day:focus { background: #e5e5ea !important; border-radius: 50% !important;}
+        .flatpickr-current-month input.cur-year { font-weight: 600 !important;}
+        .batch-qr-modal-content { max-height: 65vh; overflow-y: auto;}
     </style>
 </head>
 <body class="text-gray-800">
-
     <div id="teacher-view">
         <div class="container mx-auto p-4 sm:p-6 md:p-8 max-w-3xl">
             <header class="text-center mb-8">
@@ -158,9 +80,7 @@
                         <button id="public-qr-btn" class="apple-btn bg-gray-800 text-white px-4 py-3 flex items-center justify-center gap-2 mb-4">
                             <ion-icon name="qr-code-outline" class="text-2xl"></ion-icon> 產生全班共用學生QR Code
                         </button>
-                        <button id="batch-qrcode-btn" class="apple-btn apple-btn-primary px-5 py-3 flex items-center justify-center gap-2 mb-4">
-                            <ion-icon name="qr-code-outline"></ion-icon> 產生全班今日 QR Code
-                        </button>
+                        <!-- 已移除產生全班今日 QRCode 按鈕 -->
                         <div class="flex flex-col sm:flex-row gap-2 mb-4">
                             <input type="text" id="new-student-id" placeholder="學號" class="apple-input w-1/3">
                             <input type="text" id="new-student-name" placeholder="姓名" class="flex-grow apple-input w-2/3">
@@ -193,7 +113,6 @@
             </main>
         </div>
     </div>
-
     <div id="student-view" class="hidden">
         <div class="container mx-auto p-4 sm:p-6 max-w-md min-h-screen flex flex-col justify-center">
             <div class="apple-card text-center">
@@ -216,7 +135,7 @@
     </div>
     <div id="modal-container" class="fixed inset-0 z-50 hidden"></div>
     <script>
-    // === Firebase 初始化 ===
+    // Firebase 初始化
     const firebaseConfig = {
       apiKey: "AIzaSyAWHcrQdzFIfi8x8MJCLu44Wz5dZOLqQoE",
       authDomain: "test-b5451.firebaseapp.com",
@@ -229,13 +148,10 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
 
-    // === Util ===
     function getTodayString() {
         const now = new Date();
         return `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
     }
-
-    // === Firestore 操作 ===
     function firestoreOnStudentsChange(cb) {
         db.collection('attendance').doc('students').onSnapshot(doc => {
             cb(doc.exists ? doc.data().list : []);
@@ -253,6 +169,48 @@
         await db.collection('attendance').doc('records').set(records);
     }
 
+    // 若網址參數有 ?mode=studentqrcode 進入學生個人 QR 產生頁
+    if (new URLSearchParams(window.location.search).get("mode") === "studentqrcode") {
+        document.body.innerHTML = `
+<div class="container mx-auto p-4 sm:p-6 max-w-md min-h-screen flex flex-col justify-center">
+    <div class="apple-card text-center">
+        <h2 class="text-2xl font-bold mb-4">產生個人今日 QR Code</h2>
+        <input id="input-myid" class="apple-input w-full mb-3" type="text" placeholder="請輸入學號">
+        <button id="gen-myqrcode-btn" class="apple-btn apple-btn-primary w-full py-3 mb-3">產生個人 QR Code</button>
+        <div id="myqrcode-area" class="hidden">
+            <canvas id="myqrcode-canvas"></canvas>
+            <p class="mt-2 text-gray-600"><span id="myid-show"></span> | <span id="mydate-show"></span></p>
+            <button id="download-myqrcode-btn" class="apple-btn bg-gray-200 mt-4">下載 QR Code</button>
+        </div>
+        <p class="mt-6 text-xs text-gray-500">請輸入正確學號，產生當天有效之個人 QR Code，出示給老師掃描</p>
+    </div>
+</div>
+`;
+        const todayString = getTodayString();
+        const inputMyid = document.getElementById('input-myid');
+        const genMyqrcodeBtn = document.getElementById('gen-myqrcode-btn');
+        const myqrcodeArea = document.getElementById('myqrcode-area');
+        const myidShow = document.getElementById('myid-show');
+        const mydateShow = document.getElementById('mydate-show');
+        const downloadBtn = document.getElementById('download-myqrcode-btn');
+        genMyqrcodeBtn.onclick = function() {
+            const myid = inputMyid.value.trim();
+            if(!myid) { alert("請輸入學號！"); return; }
+            const content = `${myid}|${todayString}`;
+            QRCode.toCanvas(document.getElementById('myqrcode-canvas'), content, { width: 180, margin: 1 });
+            myidShow.textContent = myid;
+            mydateShow.textContent = todayString;
+            myqrcodeArea.classList.remove('hidden');
+        };
+        downloadBtn.onclick = function() {
+            const canvas = document.getElementById('myqrcode-canvas');
+            const link = document.createElement('a');
+            link.download = `我的QR_${inputMyid.value.trim()}_${todayString}.png`;
+            link.href = canvas.toDataURL();
+            link.click();
+        };
+    } else {
+    // === 主系統 ===
     document.addEventListener('DOMContentLoaded', async () => {
         const teacherView = document.getElementById('teacher-view');
         const studentView = document.getElementById('student-view');
@@ -277,7 +235,6 @@
         const newStudentIdInput = document.getElementById('new-student-id');
         const newStudentNameInput = document.getElementById('new-student-name');
         const addStudentBtn = document.getElementById('add-student-btn');
-        const batchQrcodeBtn = document.getElementById('batch-qrcode-btn');
         const publicQrBtn = document.getElementById('public-qr-btn');
         const historyDateInput = document.getElementById('history-date-input');
         const historyPrevBtn = document.getElementById('history-prev-btn');
@@ -290,14 +247,11 @@
         const successStudentNameEl = document.getElementById('success-student-name');
         const modalContainer = document.getElementById('modal-container');
         const scanQrBtn = document.getElementById('scan-qr-btn');
-
         let students = [];
         let attendanceRecords = {};
         const todayString = getTodayString();
         let historyDates = [];
         let selectedHistoryDate = "";
-
-        // 即時同步
         firestoreOnStudentsChange(list => {
             students = list;
             renderRosterList();
@@ -311,7 +265,6 @@
             renderHistory();
             renderStudentCheckinPage();
         });
-
         function setupTeacherView() {
             teacherView.classList.remove('hidden');
             studentView.classList.add('hidden');
@@ -327,7 +280,6 @@
             if (urlParams.get('mode') === 'student') setupStudentView();
             else setupTeacherView();
         }
-
         function renderRollCallList() {
             rollCallList.innerHTML = '';
             if (students.length === 0) {
@@ -473,7 +425,6 @@
                 await firestoreSaveAttendanceRecords(attendanceRecords);
             }
         });
-
         rollCallList.addEventListener('click', async (e) => {
             const btn = e.target.closest('button[data-status]');
             if (btn) {
@@ -483,7 +434,6 @@
             const qrBtn = e.target.closest('.show-today-qr-btn');
             if (qrBtn) showStudentTodayQr(qrBtn.dataset.id);
         });
-
         addStudentBtn.addEventListener('click', async () => {
             const id = newStudentIdInput.value.trim();
             const name = newStudentNameInput.value.trim();
@@ -513,70 +463,6 @@
             const qrBtn = e.target.closest('.show-today-qr-btn');
             if (qrBtn) showStudentTodayQr(qrBtn.dataset.id);
         });
-
-        batchQrcodeBtn.addEventListener('click', function() {
-            if (students.length === 0) { alert('尚無學生資料'); return; }
-            const modalEl = document.createElement('div');
-            modalEl.className = "w-full max-w-2xl text-center";
-            let html = `
-                <div class="flex justify-between items-center pb-3">
-                    <h3 class="text-lg font-semibold">全班今日 QR Code</h3>
-                    <button class="modal-close-btn text-gray-400 hover:text-gray-600"><ion-icon name="close-outline" class="text-2xl"></ion-icon></button>
-                </div>
-                <div class="batch-qr-modal-content grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 p-2 pb-0">`;
-            students.forEach((student, idx) => {
-                html += `
-                <div class="flex flex-col items-center bg-gray-50 rounded-xl p-3">
-                    <canvas id="batch-qr-canvas-${idx}"></canvas>
-                    <div class="mt-2 font-semibold">${student.name}</div>
-                    <div class="text-xs text-gray-500 mb-1">(${student.id})</div>
-                    <button data-idx="${idx}" data-name="${student.name}" data-id="${student.id}" class="download-single-qr apple-btn bg-gray-200 px-2 py-1 text-xs mt-1">下載</button>
-                </div>`;
-            });
-            html += `</div>
-                <button id="download-all-qr-btn" class="apple-btn apple-btn-primary px-4 py-2 mt-5">下載全部 QR Code（zip）</button>
-                <p class="mt-2 text-xs text-gray-500">每個 QR Code 內容：學號|日期，僅當日有效</p>
-            `;
-            modalEl.innerHTML = html;
-            openModal(modalEl);
-            students.forEach((student, idx) => {
-                QRCode.toCanvas(
-                    document.getElementById(`batch-qr-canvas-${idx}`),
-                    `${student.id}|${todayString}`,
-                    { width: 150, margin: 1 }
-                );
-            });
-            modalEl.querySelectorAll('.download-single-qr').forEach(btn => {
-                btn.addEventListener('click', function() {
-                    const idx = btn.getAttribute('data-idx');
-                    const name = btn.getAttribute('data-name');
-                    const id = btn.getAttribute('data-id');
-                    const canvas = document.getElementById(`batch-qr-canvas-${idx}`);
-                    const link = document.createElement('a');
-                    link.download = `${name}_${id}_QRCode.png`;
-                    link.href = canvas.toDataURL();
-                    link.click();
-                });
-            });
-            modalEl.querySelector('#download-all-qr-btn').addEventListener('click', async function() {
-                const zip = new JSZip();
-                for (let idx = 0; idx < students.length; idx++) {
-                    const student = students[idx];
-                    const canvas = document.getElementById(`batch-qr-canvas-${idx}`);
-                    const dataUrl = canvas.toDataURL("image/png");
-                    const base64 = dataUrl.split(',')[1];
-                    zip.file(`${student.name}_${student.id}_QRCode.png`, base64, {base64: true});
-                }
-                const blob = await zip.generateAsync({type:"blob"});
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `全班今日QRCode_${todayString}.zip`;
-                a.click();
-                setTimeout(()=>URL.revokeObjectURL(url), 1000);
-            });
-        });
-
         publicQrBtn.addEventListener('click', function() {
             const modalEl = document.createElement('div');
             modalEl.className = "w-full max-w-xs text-center";
@@ -588,14 +474,13 @@
                 <div class="bg-white p-4 rounded-lg inline-block">
                     <canvas id="public-qr-canvas"></canvas>
                 </div>
-                <p class="mt-4 text-gray-600">學生掃描此 QR Code 進入個人 QR 產生頁面</p>
+                <p class="mt-4 text-gray-600">學生掃描此 QR Code 進入輸入學號產生個人今日 QR Code 頁面</p>
                 <p class="mt-2 text-xs text-gray-500 break-all">${location.origin + location.pathname}?mode=studentqrcode</p>
             `;
             openModal(modalEl);
             const url = `${location.origin + location.pathname}?mode=studentqrcode`;
             QRCode.toCanvas(document.getElementById('public-qr-canvas'), url, { width: 256, margin: 1 });
         });
-
         scanQrBtn.addEventListener('click', () => {
             const modalEl = document.createElement('div');
             modalEl.className = "w-full max-w-xs";
@@ -640,7 +525,6 @@
                 err => {}
             ).catch(e=>{qrStatusMsg.textContent="無法啟動相機："+e;});
         });
-
         function openModal(modalEl, options = {}) {
             modalContainer.innerHTML = '';
             const backdrop = document.createElement('div');
@@ -748,9 +632,9 @@
                 if(pageId === 'page-history') renderHistory();
             }
         });
-
         initialize();
     });
+    }
     </script>
 </body>
 </html>
