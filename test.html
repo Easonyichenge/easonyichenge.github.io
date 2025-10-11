@@ -8,9 +8,12 @@
     <script type="module" src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.esm.js"></script>
     <script nomodule src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/qrcode@1.4.4/build/qrcode.min.js"></script>
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <!-- flatpickr 日期選擇器 -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
-        /* Apple 風格 UI 設計 */
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", "Noto Sans TC", Roboto, "Helvetica Neue", Arial, sans-serif;
             background-color: #f5f5f7;
@@ -73,7 +76,6 @@
             backdrop-filter: blur(8px);
             background-color: rgba(0,0,0,0.4);
         }
-        /* 讀取中 spinner */
         .loader {
             border: 4px solid #e5e5ea;
             border-top: 4px solid #007aff;
@@ -85,6 +87,37 @@
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
+        }
+        /* Apple 風格的 flatpickr */
+        .flatpickr-calendar {
+            border-radius: 18px !important;
+            box-shadow: 0 8px 36px 0 rgba(0,0,0,0.18) !important;
+            font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", "Noto Sans TC", Roboto, "Helvetica Neue", Arial, sans-serif !important;
+            border: none !important;
+        }
+        .flatpickr-months .flatpickr-month {
+            background: #f5f5f7 !important;
+            border-radius: 18px 18px 0 0 !important;
+        }
+        .flatpickr-day.selected, .flatpickr-day.startRange, .flatpickr-day.endRange, .flatpickr-day.selected.inRange, .flatpickr-day.startRange.inRange, .flatpickr-day.endRange.inRange, .flatpickr-day.selected:focus, .flatpickr-day.selected:active {
+            background: #007aff !important;
+            color: #fff !important;
+            border-radius: 50% !important;
+            font-weight: 700;
+            box-shadow: 0 4px 12px #007aff55;
+            transform: scale(1.06);
+        }
+        .flatpickr-day.today {
+            border-color: #007aff !important;
+            font-weight: 600;
+            background: #e5f0ff !important;
+        }
+        .flatpickr-day:hover, .flatpickr-day:focus {
+            background: #e5e5ea !important;
+            border-radius: 50% !important;
+        }
+        .flatpickr-current-month input.cur-year {
+            font-weight: 600 !important;
         }
     </style>
 </head>
@@ -111,7 +144,7 @@
                         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
                                 <div>
                                     <h2 class="text-2xl font-bold">今日點名冊</h2>
-                                    <p class="text-gray-500">點擊狀態按鈕來完成點名</p>
+                                    <p class="text-gray-500">點擊狀態按鈕或掃描學生 QR Code 來完成點名</p>
                                 </div>
                                 <div class="text-right flex-shrink-0">
                                     <p class="font-semibold text-green-600">到課: <span id="present-count">0</span></p>
@@ -121,10 +154,10 @@
                         </div>
                         <div class="flex flex-col md:flex-row gap-3 mb-6">
                             <button id="qrcode-checkin-btn" class="w-full apple-btn bg-gray-800 text-white px-4 py-3 flex items-center justify-center gap-2">
-                                <ion-icon name="qr-code-outline" class="text-2xl"></ion-icon> 產生學生簽到 QR Code
+                                <ion-icon name="qr-code-outline" class="text-2xl"></ion-icon> 產生學生簽到 QR Code（全班）
                             </button>
-                            <button id="gemini-summary-btn" class="w-full apple-btn bg-gradient-to-r from-purple-500 to-blue-500 text-white px-4 py-3 flex items-center justify-center gap-2">
-                                ✨ AI 助教分析
+                            <button id="scan-qr-btn" class="w-full apple-btn apple-btn-primary px-4 py-3 flex items-center justify-center gap-2">
+                                <ion-icon name="camera-outline" class="text-2xl"></ion-icon> 掃描學生 QR Code 點名
                             </button>
                         </div>
                         <div id="roll-call-list" class="space-y-3 max-h-[50vh] overflow-y-auto pr-2"></div>
@@ -135,7 +168,8 @@
                     <div class="apple-card">
                         <h2 class="text-2xl font-bold mb-4">管理學生名冊</h2>
                         <div class="flex flex-col sm:flex-row gap-2 mb-4">
-                            <input type="text" id="new-student-name" placeholder="輸入學生姓名" class="flex-grow w-full apple-input transition">
+                            <input type="text" id="new-student-id" placeholder="學號" class="apple-input w-1/3">
+                            <input type="text" id="new-student-name" placeholder="姓名" class="flex-grow apple-input w-2/3">
                             <button id="add-student-btn" class="w-full sm:w-auto apple-btn apple-btn-primary px-5 py-3 flex items-center justify-center gap-2">
                                 <ion-icon name="add-outline"></ion-icon> 新增
                             </button>
@@ -147,7 +181,19 @@
                 <div id="page-history" class="hidden">
                     <div class="apple-card">
                         <h2 class="text-2xl font-bold mb-4">查詢歷史點名紀錄</h2>
-                        <select id="history-date-select" class="w-full apple-input mb-4"></select>
+                        <div class="flex gap-2 items-center mb-4 justify-center">
+                            <button id="history-prev-btn" class="apple-btn bg-gray-100 shadow hover:bg-gray-200 w-10 h-10 flex items-center justify-center rounded-full text-2xl p-0 transition duration-150"><ion-icon name="chevron-back-outline"></ion-icon></button>
+                            <div class="relative flex items-center">
+                                <span class="absolute left-3 text-gray-400 text-xl pointer-events-none"><ion-icon name="calendar-outline"></ion-icon></span>
+                                <input type="text" id="history-date-input"
+                                    class="apple-input text-center pl-10 pr-3 w-40 font-semibold text-lg border border-gray-300 shadow focus:border-blue-500 focus:ring-2 focus:ring-blue-200 rounded-xl transition"
+                                    readonly>
+                            </div>
+                            <button id="history-next-btn" class="apple-btn bg-gray-100 shadow hover:bg-gray-200 w-10 h-10 flex items-center justify-center rounded-full text-2xl p-0 transition duration-150"><ion-icon name="chevron-forward-outline"></ion-icon></button>
+                            <button id="history-today-btn" class="apple-btn bg-white border border-gray-300 shadow hover:bg-blue-50 px-4 py-2 rounded-xl ml-2 font-semibold text-gray-700" type="button">
+                                今天
+                            </button>
+                        </div>
                         <div id="history-list" class="space-y-2 max-h-[50vh] overflow-y-auto pr-2"></div>
                     </div>
                 </div>
@@ -176,38 +222,11 @@
         </div>
     </div>
     
-    <div id="modal-container" class="fixed inset-0 z-50 hidden">
-        <div id="gemini-modal" class="hidden w-full max-w-lg">
-            <div class="flex justify-between items-center pb-3">
-                <h3 class="text-lg font-semibold">✨ AI 助教的分析報告</h3>
-                <button class="modal-close-btn text-gray-400 hover:text-gray-600"><ion-icon name="close-outline" class="text-2xl"></ion-icon></button>
-            </div>
-            <div id="gemini-modal-content" class="pt-4 overflow-y-auto">
-                <div id="gemini-loading" class="flex flex-col items-center justify-center text-center text-gray-500"><div class="loader"></div><p class="mt-4">AI 助教正在分析點名資料...</p></div>
-                <div id="gemini-result" class="text-gray-700 leading-relaxed whitespace-pre-wrap"></div>
-            </div>
-        </div>
-        <div id="qrcode-modal" class="hidden text-center w-full max-w-sm">
-                <div class="flex justify-between items-center pb-3">
-                <h3 class="text-lg font-semibold">學生簽到 QR Code</h3>
-                <button class="modal-close-btn text-gray-400 hover:text-gray-600"><ion-icon name="close-outline" class="text-2xl"></ion-icon></button>
-            </div>
-            <div class="bg-white p-4 rounded-lg inline-block"><canvas id="qrcode-canvas"></canvas></div>
-            <p class="mt-4 text-gray-600">請學生使用手機相機掃描此 QR Code 進行簽到。</p>
-            <p class="mt-2 text-xs text-gray-500">注意：此為學生端自行簽到，簽到狀態不會即時同步回老師的畫面。學生簽到後需出示成功畫面。</p>
-        </div>
-        <div id="confirm-modal" class="hidden w-full max-w-sm">
-            <h3 id="confirm-title" class="text-lg font-semibold text-center mb-4"></h3>
-            <div class="flex justify-center gap-3">
-                <button id="confirm-btn-cancel" class="w-full apple-btn bg-gray-200 text-gray-800 py-2">取消</button>
-                <button id="confirm-btn-ok" class="w-full apple-btn apple-btn-primary py-2">確定</button>
-            </div>
-        </div>
-    </div>
+    <div id="modal-container" class="fixed inset-0 z-50 hidden"></div>
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            // --- DOM 元素選擇 ---
+            // DOM 元素
             const teacherView = document.getElementById('teacher-view');
             const studentView = document.getElementById('student-view');
             const currentDateEl = document.getElementById('current-date');
@@ -231,14 +250,18 @@
             const presentCountEl = document.getElementById('present-count');
             const absentCountEl = document.getElementById('absent-count');
             const lateCountEl = document.getElementById('late-count');
-            
+
             // 名冊頁
             const rosterList = document.getElementById('roster-list');
+            const newStudentIdInput = document.getElementById('new-student-id');
             const newStudentNameInput = document.getElementById('new-student-name');
             const addStudentBtn = document.getElementById('add-student-btn');
 
             // 歷史頁
-            const historyDateSelect = document.getElementById('history-date-select');
+            const historyDateInput = document.getElementById('history-date-input');
+            const historyPrevBtn = document.getElementById('history-prev-btn');
+            const historyNextBtn = document.getElementById('history-next-btn');
+            const historyTodayBtn = document.getElementById('history-today-btn');
             const historyList = document.getElementById('history-list');
 
             // 學生簽到頁
@@ -249,42 +272,30 @@
 
             // Modals
             const modalContainer = document.getElementById('modal-container');
-            const geminiModal = document.getElementById('gemini-modal');
-            const qrcodeModal = document.getElementById('qrcode-modal');
-            const confirmModal = document.getElementById('confirm-modal');
-            const geminiSummaryBtn = document.getElementById('gemini-summary-btn');
             const qrcodeCheckinBtn = document.getElementById('qrcode-checkin-btn');
-            
-            // --- 狀態管理 ---
+            const scanQrBtn = document.getElementById('scan-qr-btn');
+
+            // 狀態管理
             let students = [];
             let attendanceRecords = {};
             const today = new Date();
             const todayString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
-            // --- 核心邏輯 ---
-            
-            // 初始化函式
+            // 歷史日期選擇器狀態
+            let historyDates = [];
+            let selectedHistoryDate = "";
+
+            // 初始化
             function initialize() {
                 const urlParams = new URLSearchParams(window.location.search);
-                // 新增：如果網址帶有 students 參數（base64 url safe），解碼成學生名冊資料
                 if (urlParams.get('mode') === 'student') {
-                    const studentsParam = urlParams.get('students');
-                    if (studentsParam) {
-                        try {
-                            // base64解碼+URI解碼
-                            const decoded = decodeURIComponent(atob(studentsParam));
-                            students = JSON.parse(decoded);
-                        } catch (e) {
-                            students = [];
-                        }
-                    }
                     setupStudentView();
                 } else {
                     setupTeacherView();
                 }
             }
-            
-            // 設定教師介面
+
+            // 教師介面
             function setupTeacherView() {
                 teacherView.classList.remove('hidden');
                 studentView.classList.add('hidden');
@@ -294,12 +305,12 @@
                 renderRosterList();
             }
 
-            // 設定學生介面
+            // 學生介面
             function setupStudentView() {
                 teacherView.classList.add('hidden');
                 studentView.classList.remove('hidden');
                 studentViewDateEl.textContent = `${today.getFullYear()} 年 ${today.getMonth() + 1} 月 ${today.getDate()} 日`;
-                loadData(true); // 靜默加載，不使用預設資料
+                loadData(true);
                 renderStudentCheckinPage();
             }
 
@@ -307,9 +318,9 @@
             function loadData(silent = false) {
                 const storedStudents = localStorage.getItem('students');
                 const storedRecords = localStorage.getItem('attendanceRecords');
-                if (!students.length && storedStudents) students = JSON.parse(storedStudents);
-                else if (!silent && !students.length) {
-                    students = [ { id: 1, name: '王小明' }, { id: 2, name: '陳大文' }, { id: 3, name: '林美麗' } ];
+                if (storedStudents) students = JSON.parse(storedStudents);
+                else if (!silent) {
+                    students = [ { id: "S001", name: '王小明' }, { id: "S002", name: '陳大文' }, { id: "S003", name: '林美麗' } ];
                 }
                 if (storedRecords) attendanceRecords = JSON.parse(storedRecords);
                 if (!attendanceRecords[todayString]) attendanceRecords[todayString] = {};
@@ -319,8 +330,8 @@
                 localStorage.setItem('students', JSON.stringify(students));
                 localStorage.setItem('attendanceRecords', JSON.stringify(attendanceRecords));
             }
-            
-            // --- 渲染函式 (教師) ---
+
+            // 渲染函式 (教師)
             function renderRollCallList() {
                 rollCallList.innerHTML = '';
                 if (students.length === 0) {
@@ -336,11 +347,13 @@
                         unknown: { text: '未到', color: 'gray' },
                     };
                     const current = statusConfig[status];
-                    
+
                     const item = document.createElement('div');
                     item.className = `flex items-center justify-between p-4 bg-gray-50 rounded-xl transition hover:bg-gray-100`;
                     item.innerHTML = `
-                        <p class="font-semibold text-lg">${s.name}</p>
+                        <div>
+                            <p class="font-semibold text-lg">${s.name} <span class="text-sm text-gray-500 ml-2">(${s.id})</span></p>
+                        </div>
                         <div class="flex space-x-2">
                             <button data-id="${s.id}" data-status="present" class="px-3 py-1 text-sm rounded-full ${status === 'present' ? 'bg-green-500 text-white' : 'bg-gray-200'}">到課</button>
                             <button data-id="${s.id}" data-status="absent" class="px-3 py-1 text-sm rounded-full ${status === 'absent' ? 'bg-red-500 text-white' : 'bg-gray-200'}">缺席</button>
@@ -367,78 +380,166 @@
                 students.forEach(s => {
                     const item = document.createElement('div');
                     item.className = 'flex items-center justify-between p-4 bg-gray-50 rounded-xl';
-                    item.innerHTML = `<p>${s.name}</p><button data-id="${s.id}" class="delete-student-btn text-red-500 hover:text-red-700"><ion-icon name="trash-outline" class="text-xl"></ion-icon></button>`;
+                    item.innerHTML = `<div>
+                        <p class="font-semibold">${s.name} <span class="text-sm text-gray-500 ml-2">(${s.id})</span></p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button class="download-qr-btn apple-btn bg-gray-300 px-3 py-1 text-sm" data-id="${s.id}" data-name="${s.name}"><ion-icon name="qr-code-outline"></ion-icon> QR Code</button>
+                        <button data-id="${s.id}" class="delete-student-btn text-red-500 hover:text-red-700"><ion-icon name="trash-outline" class="text-xl"></ion-icon></button>
+                    </div>`;
                     rosterList.appendChild(item);
                 });
             }
 
+            // 歷史紀錄
             function renderHistory() {
-                const dates = Object.keys(attendanceRecords).sort((a, b) => new Date(b) - new Date(a));
-                historyDateSelect.innerHTML = dates.length ? dates.map(d => `<option value="${d}">${d}</option>`).join('') : '<option>無歷史紀錄</option>';
-                if(dates.length) renderHistoryForDate(dates[0]);
-                else historyList.innerHTML = '';
+                historyDates = Object.keys(attendanceRecords).sort((a, b) => new Date(a) - new Date(b));
+                if (historyDates.length === 0) {
+                    historyDateInput.value = "";
+                    renderHistoryForDate("");
+                    if (window.historyDatePicker) window.historyDatePicker.set('enable', []);
+                    return;
+                }
+                selectedHistoryDate = selectedHistoryDate && historyDates.includes(selectedHistoryDate) ? selectedHistoryDate : historyDates[historyDates.length-1];
+                historyDateInput.value = selectedHistoryDate;
+                renderHistoryForDate(selectedHistoryDate);
+                if (window.historyDatePicker) window.historyDatePicker.set('enable', historyDates);
             }
-            
+
             function renderHistoryForDate(date) {
                 historyList.innerHTML = '';
+                if (!date || !attendanceRecords[date]) {
+                    historyList.innerHTML = `<p class="text-gray-500 text-center py-4">此日期無紀錄。</p>`;
+                    return;
+                }
                 const records = attendanceRecords[date] || {};
-                const studentIds = Object.keys(records).map(id => parseInt(id));
+                const studentIds = Object.keys(records);
                 if (studentIds.length === 0) {
-                    historyList.innerHTML = `<p class="text-gray-500 text-center py-4">此日期無紀錄。</p>`; return;
+                    historyList.innerHTML = `<p class="text-gray-500 text-center py-4">此日期無紀錄。</p>`;
+                    return;
                 }
                 students.filter(s => studentIds.includes(s.id)).forEach(s => {
                     const status = records[s.id];
                     const statusText = { present: '到課', absent: '缺席', late: '遲到' }[status] || '未記錄';
                     const statusColor = { present: 'text-green-600', absent: 'text-red-600', late: 'text-yellow-600' }[status] || 'text-gray-500';
+                    // 新增：可編輯歷史狀態
                     const item = document.createElement('div');
                     item.className = 'flex items-center justify-between p-4 bg-gray-50 rounded-xl';
-                    item.innerHTML = `<p>${s.name}</p><p class="font-semibold ${statusColor}">${statusText}</p>`;
+                    item.innerHTML = `
+                        <div>
+                            <p class="font-semibold">${s.name} <span class="text-sm text-gray-500 ml-2">(${s.id})</span></p>
+                        </div>
+                        <div class="flex space-x-2">
+                            <button data-id="${s.id}" data-status="present" data-date="${date}" class="history-status-btn px-3 py-1 text-sm rounded-full ${status === 'present' ? 'bg-green-500 text-white' : 'bg-gray-200'}">到課</button>
+                            <button data-id="${s.id}" data-status="absent" data-date="${date}" class="history-status-btn px-3 py-1 text-sm rounded-full ${status === 'absent' ? 'bg-red-500 text-white' : 'bg-gray-200'}">缺席</button>
+                            <button data-id="${s.id}" data-status="late" data-date="${date}" class="history-status-btn px-3 py-1 text-sm rounded-full ${status === 'late' ? 'bg-yellow-500 text-white' : 'bg-gray-200'}">遲到</button>
+                        </div>
+                    `;
                     historyList.appendChild(item);
                 });
             }
 
-            // --- 渲染函式 (學生) ---
-            function renderStudentCheckinPage() {
-                const todaysRecords = attendanceRecords[todayString] || {};
-                const checkedInStudentId = parseInt(localStorage.getItem(`checkedIn_${todayString}`));
+            // flatpickr 日期選擇器
+            window.historyDatePicker = flatpickr(historyDateInput, {
+                dateFormat: "Y-m-d",
+                disableMobile: true,
+                enable: [],
+                allowInput: false,
+                clickOpens: true,
+                onOpen: function(selectedDates, dateStr, instance){
+                    setTimeout(()=>{
+                        if(instance.selectedDateElem) instance.selectedDateElem.focus();
+                    },10);
+                },
+                onChange: function(selectedDates, dateStr) {
+                    if (dateStr && historyDates.includes(dateStr)) {
+                        selectedHistoryDate = dateStr;
+                        renderHistoryForDate(dateStr);
+                    }
+                }
+            });
 
+            historyPrevBtn.addEventListener('click', function(){
+                if (!selectedHistoryDate || historyDates.length === 0) return;
+                let idx = historyDates.indexOf(selectedHistoryDate);
+                if (idx > 0) {
+                    selectedHistoryDate = historyDates[idx-1];
+                    historyDateInput.value = selectedHistoryDate;
+                    renderHistoryForDate(selectedHistoryDate);
+                }
+            });
+            historyNextBtn.addEventListener('click', function(){
+                if (!selectedHistoryDate || historyDates.length === 0) return;
+                let idx = historyDates.indexOf(selectedHistoryDate);
+                if (idx < historyDates.length-1) {
+                    selectedHistoryDate = historyDates[idx+1];
+                    historyDateInput.value = selectedHistoryDate;
+                    renderHistoryForDate(selectedHistoryDate);
+                }
+            });
+
+            // "今天" 按鈕功能
+            historyTodayBtn.addEventListener('click', function() {
+                if (historyDates.length === 0) return;
+                let todayStr = new Date().toISOString().slice(0, 10);
+                if (!historyDates.includes(todayStr)) todayStr = historyDates[historyDates.length-1];
+                selectedHistoryDate = todayStr;
+                historyDateInput.value = todayStr;
+                renderHistoryForDate(todayStr);
+            });
+
+            // 編輯歷史紀錄狀態
+            historyList.addEventListener('click', function(e){
+                const btn = e.target.closest('.history-status-btn');
+                if (btn) {
+                    const date = btn.getAttribute('data-date');
+                    const id = btn.getAttribute('data-id');
+                    const status = btn.getAttribute('data-status');
+                    if (!attendanceRecords[date]) attendanceRecords[date] = {};
+                    attendanceRecords[date][id] = status;
+                    saveData();
+                    renderHistoryForDate(date);
+                }
+            });
+
+            // 渲染函式 (學生)
+            function renderStudentCheckinPage() {
+                const checkedInStudentId = localStorage.getItem(`checkedIn_${todayString}`);
                 if (checkedInStudentId && students.some(s => s.id === checkedInStudentId)) {
                     showStudentSuccess(students.find(s => s.id === checkedInStudentId).name);
                     return;
                 }
-                
                 studentSelectionList.innerHTML = '';
                 if(students.length === 0) {
                         studentSelectionList.innerHTML = `<p class="text-gray-500 text-center py-4">老師尚未建立學生名冊。</p>`; return;
                 }
-                
                 students.forEach(s => {
                     const button = document.createElement('button');
                     button.dataset.id = s.id;
-                    button.textContent = s.name;
+                    button.textContent = `${s.name} (${s.id})`;
                     button.className = 'w-full text-left p-4 bg-gray-100 rounded-lg text-lg font-medium hover:bg-blue-100 transition';
                     studentSelectionList.appendChild(button);
                 });
             }
-            
+
             function showStudentSuccess(name) {
                 successStudentNameEl.textContent = name;
                 studentCheckinArea.classList.add('hidden');
                 studentSuccessArea.classList.remove('hidden');
             }
 
-
-            // --- Modal 邏輯 ---
-            function openModal(modalEl) {
+            // Modal 邏輯
+            function openModal(modalEl, options = {}) {
+                modalContainer.innerHTML = '';
                 const backdrop = document.createElement('div');
                 backdrop.className = 'modal-backdrop fixed inset-0';
                 modalContainer.appendChild(backdrop);
-                
+
                 const card = document.createElement('div');
                 card.className = 'apple-card relative';
                 card.appendChild(modalEl);
                 modalContainer.appendChild(card);
-                
+
                 modalEl.classList.remove('hidden');
                 modalContainer.classList.remove('hidden');
                 modalContainer.classList.add('flex', 'items-center', 'justify-center', 'p-4');
@@ -447,49 +548,32 @@
                     modalContainer.innerHTML = '';
                     modalContainer.classList.add('hidden');
                     modalContainer.classList.remove('flex', 'items-center', 'justify-center', 'p-4');
+                    if(options.onClose) options.onClose();
                 };
-                
+
                 backdrop.addEventListener('click', closeModal);
                 modalContainer.querySelectorAll('.modal-close-btn').forEach(btn => btn.addEventListener('click', closeModal));
                 return closeModal;
             }
-            
+
             function showConfirm(title, onOk) {
-                document.getElementById('confirm-title').textContent = title;
-                const close = openModal(confirmModal);
-                
-                const okBtn = document.getElementById('confirm-btn-ok');
-                const cancelBtn = document.getElementById('confirm-btn-cancel');
-                
-                const handleOk = () => { onOk(); close(); removeListeners(); };
-                const handleCancel = () => { close(); removeListeners(); };
-
-                okBtn.addEventListener('click', handleOk);
-                cancelBtn.addEventListener('click', handleCancel);
-
-                function removeListeners() {
-                    okBtn.removeEventListener('click', handleOk);
-                    cancelBtn.removeEventListener('click', handleCancel);
-                }
+                // 動態產生簡易確認 Modal
+                const modalEl = document.createElement('div');
+                modalEl.className = "w-full max-w-sm";
+                modalEl.innerHTML = `
+                    <h3 class="text-lg font-semibold text-center mb-4">${title}</h3>
+                    <div class="flex justify-center gap-3">
+                        <button id="confirm-btn-cancel" class="w-full apple-btn bg-gray-200 text-gray-800 py-2">取消</button>
+                        <button id="confirm-btn-ok" class="w-full apple-btn apple-btn-primary py-2">確定</button>
+                    </div>
+                `;
+                const close = openModal(modalEl);
+                modalEl.querySelector('#confirm-btn-ok').addEventListener('click', () => { onOk(); close(); });
+                modalEl.querySelector('#confirm-btn-cancel').addEventListener('click', close);
             }
 
+            // 事件監聽
 
-            // --- Gemini API ---
-            async function callGeminiAPI(prompt) {
-                const apiKey = ""; // <-- 請在此處填入您的 Google Gemini API 金鑰
-                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
-                const systemPrompt = "你是一位友善且經驗豐富的助教，專門協助老師處理班級事務。請根據提供的點名紀錄，用繁體中文、條列式的方式，提供分析建議。";
-                const payload = { contents: [{ parts: [{ text: prompt }] }], systemInstruction: { parts: [{ text: systemPrompt }] }, };
-                try {
-                    const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-                    if (!response.ok) throw new Error(`API 請求失敗: ${response.status}`);
-                    const result = await response.json();
-                    return result.candidates?.[0]?.content?.parts?.[0]?.text || "無法從 AI 獲得回應。";
-                } catch (error) { console.error('Fetch Error:', error); return "無法連接至 AI 服務。請檢查您的 API 金鑰是否正確以及網路連線。"; }
-            }
-
-            // --- 事件監聽器 ---
-            
             // 標籤頁切換
             tabContainer.addEventListener('click', (e) => {
                 if(e.target.classList.contains('apple-tab-link')) {
@@ -514,25 +598,31 @@
                     renderRollCallList();
                 }
             });
-            
+
             // 新增/刪除學生
             addStudentBtn.addEventListener('click', () => {
+                const id = newStudentIdInput.value.trim();
                 const name = newStudentNameInput.value.trim();
-                if (name) {
-                    const newId = students.length > 0 ? Math.max(...students.map(s => s.id)) + 1 : 1;
-                    students.push({ id: newId, name });
+                if (id && name) {
+                    if (students.some(s => s.id === id)) {
+                        alert("已有相同學號的學生！");
+                        return;
+                    }
+                    students.push({ id, name });
+                    newStudentIdInput.value = '';
                     newStudentNameInput.value = '';
                     saveData();
                     renderRosterList();
                     renderRollCallList();
                 }
             });
+            newStudentIdInput.addEventListener('keypress', e => { if (e.key === 'Enter') newStudentNameInput.focus(); });
             newStudentNameInput.addEventListener('keypress', e => { if (e.key === 'Enter') addStudentBtn.click(); });
-            
+
             rosterList.addEventListener('click', (e) => {
                 const btn = e.target.closest('.delete-student-btn');
                 if (btn) {
-                    const studentId = parseInt(btn.dataset.id);
+                    const studentId = btn.dataset.id;
                     const student = students.find(s => s.id === studentId);
                     showConfirm(`確定要刪除「${student.name}」嗎？`, () => {
                         students = students.filter(s => s.id !== studentId);
@@ -542,67 +632,397 @@
                         renderRollCallList();
                     });
                 }
-            });
-            
-            // 歷史紀錄選擇
-            historyDateSelect.addEventListener('change', e => renderHistoryForDate(e.target.value));
-
-            // Modal 按鈕
-            geminiSummaryBtn.addEventListener('click', async () => {
-                openModal(geminiModal);
-                document.getElementById('gemini-loading').style.display = 'flex';
-                document.getElementById('gemini-result').textContent = '';
-                
-                const records = attendanceRecords[todayString] || {};
-                const studentMap = new Map(students.map(s => [s.id, s.name]));
-                const present = [], absent = [], late = [];
-                Object.entries(records).forEach(([id, status]) => {
-                    const name = studentMap.get(parseInt(id));
-                    if(name) {
-                        if (status === 'present') present.push(name);
-                        else if (status === 'absent') absent.push(name);
-                        else if (status === 'late') late.push(name);
-                    }
-                });
-
-                const prompt = `點名紀錄：總人數: ${students.length}人。 到課: ${present.join(', ') || '無'}。 缺席: ${absent.join(', ') || '無'}。 遲到: ${late.join(', ') || '無'}。`;
-                const resultText = await callGeminiAPI(prompt);
-                document.getElementById('gemini-loading').style.display = 'none';
-                document.getElementById('gemini-result').textContent = resultText;
-            });
-            
-            // 產生帶有學生名冊的 QR Code
-            qrcodeCheckinBtn.addEventListener('click', () => {
-                openModal(qrcodeModal);
-                // 新增：編碼學生名冊為 base64，附加到網址參數
-                let studentsBase64 = "";
-                try {
-                    studentsBase64 = btoa(encodeURIComponent(JSON.stringify(students)));
-                } catch (e) {
-                    studentsBase64 = "";
+                // 下載/顯示學生 QR Code
+                const qrBtn = e.target.closest('.download-qr-btn');
+                if (qrBtn) {
+                    const studentId = qrBtn.dataset.id;
+                    const studentName = qrBtn.dataset.name;
+                    const modalEl = document.createElement('div');
+                    modalEl.className = "w-full max-w-xs text-center";
+                    modalEl.innerHTML = `
+                        <div class="flex justify-between items-center pb-3">
+                            <h3 class="text-lg font-semibold">學生 QR Code</h3>
+                            <button class="modal-close-btn text-gray-400 hover:text-gray-600"><ion-icon name="close-outline" class="text-2xl"></ion-icon></button>
+                        </div>
+                        <div class="bg-white p-4 rounded-lg inline-block">
+                            <canvas id="student-qr-canvas"></canvas>
+                        </div>
+                        <p class="mt-2"><b>${studentName} (${studentId})</b></p>
+                        <p class="mt-2 text-xs text-gray-500">請將此 QR Code 印出或存於手機，於點名時出示給老師掃描。</p>
+                        <button id="download-qr-btn" class="apple-btn apple-btn-primary px-4 py-2 mt-3">下載 QR Code</button>
+                    `;
+                    openModal(modalEl);
+                    // 學號作為 QR Code 內容
+                    QRCode.toCanvas(document.getElementById('student-qr-canvas'), studentId, { width: 180, margin: 1 });
+                    modalEl.querySelector('#download-qr-btn').addEventListener('click', () => {
+                        const canvas = document.getElementById('student-qr-canvas');
+                        const link = document.createElement('a');
+                        link.download = `${studentName}_${studentId}_QRCode.png`;
+                        link.href = canvas.toDataURL();
+                        link.click();
+                    });
                 }
-                const url = `${window.location.href.split('?')[0]}?mode=student${studentsBase64 ? `&students=${studentsBase64}` : ""}`;
+            });
+
+            // 全班簽到 QR Code（原功能，仍為網址）
+            qrcodeCheckinBtn.addEventListener('click', () => {
+                const modalEl = document.createElement('div');
+                modalEl.className = "w-full max-w-xs text-center";
+                modalEl.innerHTML = `
+                    <div class="flex justify-between items-center pb-3">
+                        <h3 class="text-lg font-semibold">學生簽到 QR Code</h3>
+                        <button class="modal-close-btn text-gray-400 hover:text-gray-600"><ion-icon name="close-outline" class="text-2xl"></ion-icon></button>
+                    </div>
+                    <div class="bg-white p-4 rounded-lg inline-block">
+                        <canvas id="qrcode-canvas"></canvas>
+                    </div>
+                    <p class="mt-4 text-gray-600">請學生使用手機相機掃描此 QR Code 進行簽到。</p>
+                    <p class="mt-2 text-xs text-gray-500">此 QR Code 會帶學生進入簽到頁。</p>
+                `;
+                openModal(modalEl);
+                const url = `${window.location.href.split('?')[0]}?mode=student`;
                 QRCode.toCanvas(document.getElementById('qrcode-canvas'), url, { width: 256, margin: 1 });
             });
-            
-            // 學生簽到
-            studentSelectionList.addEventListener('click', (e) => {
-                const btn = e.target.closest('button[data-id]');
-                if (btn) {
-                    const studentId = parseInt(btn.dataset.id);
-                    const studentName = students.find(s => s.id === studentId)?.name;
-                    if(studentName) {
-                        localStorage.setItem(`checkedIn_${todayString}`, studentId);
-                        // 雖然無法同步回老師那邊，但仍在學生端自己的 localStorage 記錄，方便重新整理
-                        if(!attendanceRecords[todayString]) attendanceRecords[todayString] = {};
-                        attendanceRecords[todayString][studentId] = 'present';
+
+            // 掃描學生 QR Code 點名
+            scanQrBtn.addEventListener('click', () => {
+                const modalEl = document.createElement('div');
+                modalEl.className = "w-full max-w-xs";
+                modalEl.innerHTML = `
+                    <div class="flex justify-between items-center pb-3">
+                        <h3 class="text-lg font-semibold">掃描學生 QR Code</h3>
+                        <button class="modal-close-btn text-gray-400 hover:text-gray-600"><ion-icon name="close-outline" class="text-2xl"></ion-icon></button>
+                    </div>
+                    <div id="qr-reader" style="width: 280px;" class="mx-auto"></div>
+                    <p id="qr-status-msg" class="mt-3 text-center text-sm text-gray-700"></p>
+                `;
+                let html5Qr;
+                const closeModal = openModal(modalEl, { onClose: ()=>{ if(html5Qr) html5Qr.stop(); } });
+                const qrStatusMsg = modalEl.querySelector('#qr-status-msg');
+                html5Qr = new Html5Qrcode("qr-reader");
+                html5Qr.start(
+                    { facingMode: "environment" },
+                    { fps: 10, qrbox: 200 },
+                    code => {
+                        // QR Code 內容為學號
+                        const stu = students.find(s => s.id === code.trim());
+                        if (!stu) {
+                            qrStatusMsg.textContent = "無法辨識此學號，請確認學生 QR Code 是否正確。";
+                            return;
+                        }
+                        attendanceRecords[todayString][stu.id] = 'present';
                         saveData();
-                        showStudentSuccess(studentName);
+                        renderRollCallList();
+                        qrStatusMsg.textContent = `已成功點名：${stu.name} (${stu.id})`;
+                        setTimeout(() => { closeModal(); }, 1200);
+                        html5Qr.stop();
+                    },
+                    err => {
+                        // 忽略掃描失敗
                     }
+                ).catch(e=>{qrStatusMsg.textContent="無法啟動相機："+e;});
+            });
+
+            // 歷史紀錄選擇
+            historyDateInput.addEventListener('change', function(){
+                if (historyDates.length && historyDates.includes(historyDateInput.value)) {
+                    selectedHistoryDate = historyDateInput.value;
+                    renderHistoryForDate(selectedHistoryDate);
                 }
             });
 
-            // --- 初始化 ---
+            // "今天" 按鈕功能
+            historyTodayBtn.addEventListener('click', function() {
+                if (historyDates.length === 0) return;
+                let todayStr = new Date().toISOString().slice(0, 10);
+                if (!historyDates.includes(todayStr)) todayStr = historyDates[historyDates.length-1];
+                selectedHistoryDate = todayStr;
+                historyDateInput.value = todayStr;
+                renderHistoryForDate(todayStr);
+            });
+
+            // 編輯歷史紀錄狀態
+            historyList.addEventListener('click', function(e){
+                const btn = e.target.closest('.history-status-btn');
+                if (btn) {
+                    const date = btn.getAttribute('data-date');
+                    const id = btn.getAttribute('data-id');
+                    const status = btn.getAttribute('data-status');
+                    if (!attendanceRecords[date]) attendanceRecords[date] = {};
+                    attendanceRecords[date][id] = status;
+                    saveData();
+                    renderHistoryForDate(date);
+                }
+            });
+
+            // 渲染函式 (學生)
+            function renderStudentCheckinPage() {
+                const checkedInStudentId = localStorage.getItem(`checkedIn_${todayString}`);
+                if (checkedInStudentId && students.some(s => s.id === checkedInStudentId)) {
+                    showStudentSuccess(students.find(s => s.id === checkedInStudentId).name);
+                    return;
+                }
+                studentSelectionList.innerHTML = '';
+                if(students.length === 0) {
+                        studentSelectionList.innerHTML = `<p class="text-gray-500 text-center py-4">老師尚未建立學生名冊。</p>`; return;
+                }
+                students.forEach(s => {
+                    const button = document.createElement('button');
+                    button.dataset.id = s.id;
+                    button.textContent = `${s.name} (${s.id})`;
+                    button.className = 'w-full text-left p-4 bg-gray-100 rounded-lg text-lg font-medium hover:bg-blue-100 transition';
+                    studentSelectionList.appendChild(button);
+                });
+            }
+
+            function showStudentSuccess(name) {
+                successStudentNameEl.textContent = name;
+                studentCheckinArea.classList.add('hidden');
+                studentSuccessArea.classList.remove('hidden');
+            }
+
+            // Modal 邏輯
+            function openModal(modalEl, options = {}) {
+                modalContainer.innerHTML = '';
+                const backdrop = document.createElement('div');
+                backdrop.className = 'modal-backdrop fixed inset-0';
+                modalContainer.appendChild(backdrop);
+
+                const card = document.createElement('div');
+                card.className = 'apple-card relative';
+                card.appendChild(modalEl);
+                modalContainer.appendChild(card);
+
+                modalEl.classList.remove('hidden');
+                modalContainer.classList.remove('hidden');
+                modalContainer.classList.add('flex', 'items-center', 'justify-center', 'p-4');
+
+                const closeModal = () => {
+                    modalContainer.innerHTML = '';
+                    modalContainer.classList.add('hidden');
+                    modalContainer.classList.remove('flex', 'items-center', 'justify-center', 'p-4');
+                    if(options.onClose) options.onClose();
+                };
+
+                backdrop.addEventListener('click', closeModal);
+                modalContainer.querySelectorAll('.modal-close-btn').forEach(btn => btn.addEventListener('click', closeModal));
+                return closeModal;
+            }
+
+            function showConfirm(title, onOk) {
+                // 動態產生簡易確認 Modal
+                const modalEl = document.createElement('div');
+                modalEl.className = "w-full max-w-sm";
+                modalEl.innerHTML = `
+                    <h3 class="text-lg font-semibold text-center mb-4">${title}</h3>
+                    <div class="flex justify-center gap-3">
+                        <button id="confirm-btn-cancel" class="w-full apple-btn bg-gray-200 text-gray-800 py-2">取消</button>
+                        <button id="confirm-btn-ok" class="w-full apple-btn apple-btn-primary py-2">確定</button>
+                    </div>
+                `;
+                const close = openModal(modalEl);
+                modalEl.querySelector('#confirm-btn-ok').addEventListener('click', () => { onOk(); close(); });
+                modalEl.querySelector('#confirm-btn-cancel').addEventListener('click', close);
+            }
+
+            // 事件監聽
+
+            // 標籤頁切換
+            tabContainer.addEventListener('click', (e) => {
+                if(e.target.classList.contains('apple-tab-link')) {
+                    Object.values(tabs).forEach(t => t.classList.remove('active'));
+                    Object.values(pages).forEach(p => p.classList.add('hidden'));
+                    e.target.classList.add('active');
+                    const pageId = 'page-' + e.target.id.split('-').slice(1).join('-');
+                    const pageElement = document.getElementById(pageId);
+                    if (pageElement) {
+                        pageElement.classList.remove('hidden');
+                    }
+                    if(pageId === 'page-history') renderHistory();
+                }
+            });
+
+            // 點名按鈕
+            rollCallList.addEventListener('click', (e) => {
+                const btn = e.target.closest('button[data-status]');
+                if (btn) {
+                    attendanceRecords[todayString][btn.dataset.id] = btn.dataset.status;
+                    saveData();
+                    renderRollCallList();
+                }
+            });
+
+            // 新增/刪除學生
+            addStudentBtn.addEventListener('click', () => {
+                const id = newStudentIdInput.value.trim();
+                const name = newStudentNameInput.value.trim();
+                if (id && name) {
+                    if (students.some(s => s.id === id)) {
+                        alert("已有相同學號的學生！");
+                        return;
+                    }
+                    students.push({ id, name });
+                    newStudentIdInput.value = '';
+                    newStudentNameInput.value = '';
+                    saveData();
+                    renderRosterList();
+                    renderRollCallList();
+                }
+            });
+            newStudentIdInput.addEventListener('keypress', e => { if (e.key === 'Enter') newStudentNameInput.focus(); });
+            newStudentNameInput.addEventListener('keypress', e => { if (e.key === 'Enter') addStudentBtn.click(); });
+
+            rosterList.addEventListener('click', (e) => {
+                const btn = e.target.closest('.delete-student-btn');
+                if (btn) {
+                    const studentId = btn.dataset.id;
+                    const student = students.find(s => s.id === studentId);
+                    showConfirm(`確定要刪除「${student.name}」嗎？`, () => {
+                        students = students.filter(s => s.id !== studentId);
+                        Object.keys(attendanceRecords).forEach(date => delete attendanceRecords[date][studentId]);
+                        saveData();
+                        renderRosterList();
+                        renderRollCallList();
+                    });
+                }
+                // 下載/顯示學生 QR Code
+                const qrBtn = e.target.closest('.download-qr-btn');
+                if (qrBtn) {
+                    const studentId = qrBtn.dataset.id;
+                    const studentName = qrBtn.dataset.name;
+                    const modalEl = document.createElement('div');
+                    modalEl.className = "w-full max-w-xs text-center";
+                    modalEl.innerHTML = `
+                        <div class="flex justify-between items-center pb-3">
+                            <h3 class="text-lg font-semibold">學生 QR Code</h3>
+                            <button class="modal-close-btn text-gray-400 hover:text-gray-600"><ion-icon name="close-outline" class="text-2xl"></ion-icon></button>
+                        </div>
+                        <div class="bg-white p-4 rounded-lg inline-block">
+                            <canvas id="student-qr-canvas"></canvas>
+                        </div>
+                        <p class="mt-2"><b>${studentName} (${studentId})</b></p>
+                        <p class="mt-2 text-xs text-gray-500">請將此 QR Code 印出或存於手機，於點名時出示給老師掃描。</p>
+                        <button id="download-qr-btn" class="apple-btn apple-btn-primary px-4 py-2 mt-3">下載 QR Code</button>
+                    `;
+                    openModal(modalEl);
+                    // 學號作為 QR Code 內容
+                    QRCode.toCanvas(document.getElementById('student-qr-canvas'), studentId, { width: 180, margin: 1 });
+                    modalEl.querySelector('#download-qr-btn').addEventListener('click', () => {
+                        const canvas = document.getElementById('student-qr-canvas');
+                        const link = document.createElement('a');
+                        link.download = `${studentName}_${studentId}_QRCode.png`;
+                        link.href = canvas.toDataURL();
+                        link.click();
+                    });
+                }
+            });
+
+            // 全班簽到 QR Code（原功能，仍為網址）
+            qrcodeCheckinBtn.addEventListener('click', () => {
+                const modalEl = document.createElement('div');
+                modalEl.className = "w-full max-w-xs text-center";
+                modalEl.innerHTML = `
+                    <div class="flex justify-between items-center pb-3">
+                        <h3 class="text-lg font-semibold">學生簽到 QR Code</h3>
+                        <button class="modal-close-btn text-gray-400 hover:text-gray-600"><ion-icon name="close-outline" class="text-2xl"></ion-icon></button>
+                    </div>
+                    <div class="bg-white p-4 rounded-lg inline-block">
+                        <canvas id="qrcode-canvas"></canvas>
+                    </div>
+                    <p class="mt-4 text-gray-600">請學生使用手機相機掃描此 QR Code 進行簽到。</p>
+                    <p class="mt-2 text-xs text-gray-500">此 QR Code 會帶學生進入簽到頁。</p>
+                `;
+                openModal(modalEl);
+                const url = `${window.location.href.split('?')[0]}?mode=student`;
+                QRCode.toCanvas(document.getElementById('qrcode-canvas'), url, { width: 256, margin: 1 });
+            });
+
+            // 掃描學生 QR Code 點名
+            scanQrBtn.addEventListener('click', () => {
+                const modalEl = document.createElement('div');
+                modalEl.className = "w-full max-w-xs";
+                modalEl.innerHTML = `
+                    <div class="flex justify-between items-center pb-3">
+                        <h3 class="text-lg font-semibold">掃描學生 QR Code</h3>
+                        <button class="modal-close-btn text-gray-400 hover:text-gray-600"><ion-icon name="close-outline" class="text-2xl"></ion-icon></button>
+                    </div>
+                    <div id="qr-reader" style="width: 280px;" class="mx-auto"></div>
+                    <p id="qr-status-msg" class="mt-3 text-center text-sm text-gray-700"></p>
+                `;
+                let html5Qr;
+                const closeModal = openModal(modalEl, { onClose: ()=>{ if(html5Qr) html5Qr.stop(); } });
+                const qrStatusMsg = modalEl.querySelector('#qr-status-msg');
+                html5Qr = new Html5Qrcode("qr-reader");
+                html5Qr.start(
+                    { facingMode: "environment" },
+                    { fps: 10, qrbox: 200 },
+                    code => {
+                        // QR Code 內容為學號
+                        const stu = students.find(s => s.id === code.trim());
+                        if (!stu) {
+                            qrStatusMsg.textContent = "無法辨識此學號，請確認學生 QR Code 是否正確。";
+                            return;
+                        }
+                        attendanceRecords[todayString][stu.id] = 'present';
+                        saveData();
+                        renderRollCallList();
+                        qrStatusMsg.textContent = `已成功點名：${stu.name} (${stu.id})`;
+                        setTimeout(() => { closeModal(); }, 1200);
+                        html5Qr.stop();
+                    },
+                    err => {
+                        // 忽略掃描失敗
+                    }
+                ).catch(e=>{qrStatusMsg.textContent="無法啟動相機："+e;});
+            });
+
+            // 歷史紀錄選擇
+            historyDateInput.addEventListener('change', function(){
+                if (historyDates.length && historyDates.includes(historyDateInput.value)) {
+                    selectedHistoryDate = historyDateInput.value;
+                    renderHistoryForDate(selectedHistoryDate);
+                }
+            });
+
+            // 編輯歷史紀錄狀態
+            historyList.addEventListener('click', function(e){
+                const btn = e.target.closest('.history-status-btn');
+                if (btn) {
+                    const date = btn.getAttribute('data-date');
+                    const id = btn.getAttribute('data-id');
+                    const status = btn.getAttribute('data-status');
+                    if (!attendanceRecords[date]) attendanceRecords[date] = {};
+                    attendanceRecords[date][id] = status;
+                    saveData();
+                    renderHistoryForDate(date);
+                }
+            });
+
+            // "今天" 按鈕功能
+            historyTodayBtn.addEventListener('click', function() {
+                if (historyDates.length === 0) return;
+                let todayStr = new Date().toISOString().slice(0, 10);
+                if (!historyDates.includes(todayStr)) todayStr = historyDates[historyDates.length-1];
+                selectedHistoryDate = todayStr;
+                historyDateInput.value = todayStr;
+                renderHistoryForDate(todayStr);
+            });
+
+            // Storage 事件監聽（同一裝置多分頁自動同步）
+            window.addEventListener('storage', function(e) {
+                if (e.key === 'attendanceRecords') {
+                    loadData();
+                    renderRollCallList();
+                    renderHistory();
+                }
+                if (e.key === 'students') {
+                    loadData();
+                    renderRosterList();
+                    renderRollCallList();
+                }
+            });
+
+            // 初始化
             initialize();
         });
     </script>
