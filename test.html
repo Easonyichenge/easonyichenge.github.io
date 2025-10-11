@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8">
-  <title>智慧點名系統（Google Redirect 登入）</title>
+  <title>智慧點名系統（Google Redirect 登入 完全展開）</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
@@ -125,36 +125,33 @@ function showStudentQrcodeView() {
         link.click();
     };
 }
-function showStudentView() {
+function showStudentView(email) {
   document.getElementById('root').innerHTML = `
     <div class="apple-card max-w-md mx-auto mt-20 text-center">
       <h2 class="text-2xl font-bold mb-3">學生簽到</h2>
-      <p>請掃描 QR Code 或用老師端進行簽到</p>
+      <p>你的帳號 ${email} 不是老師帳號，僅可使用學生功能。</p>
     </div>
   `;
 }
-// 入口控制
 window.onload = function() {
   if (new URLSearchParams(window.location.search).get("mode") === "studentqrcode") {
     showStudentQrcodeView();
     return;
   }
   firebase.auth().getRedirectResult().then(function(result) {
-    // result.user 不為 null，代表剛剛 redirect 完登入成功
-    // 這時 onAuthStateChanged 也會觸發
-    if (result.user) {
-      // 可在這裡顯示 loading 或直接 reload
-    }
+    // 登入後會觸發 onAuthStateChanged
   }).catch(function(error) {
     alert(error.message);
   });
   firebase.auth().onAuthStateChanged(function(user) {
     if (!user) { showLogin(); return; }
-    if (TEACHER_EMAILS.includes(user.email)) {
-      document.getElementById("root").innerHTML = teacherAppHtml(user.email);
+    const email = (user.email || '').toLowerCase();
+    console.log("user.email:", email);
+    if (email === "easonyichenge@gmail.com") {
+      document.getElementById("root").innerHTML = teacherAppHtml(email);
       runTeacherApp();
     } else {
-      showStudentView();
+      showStudentView(email);
     }
   });
 };
@@ -245,8 +242,6 @@ function teacherAppHtml(email) {
   `;
 }
 function runTeacherApp() {
-    // 完整功能與原先 Firestore 版一致
-    // ... 以下與你原有主程式一致 ...
     const teacherView = document.getElementById('teacher-view');
     const currentDateEl = document.getElementById('current-date');
     const tabContainer = document.getElementById('tab-container');
