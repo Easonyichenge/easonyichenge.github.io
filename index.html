@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <title>台灣鐵道即時狀態 - Apple Style</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        :root {
+            --bg: #f8f8f8;
+            --card-bg: #fff;
+            --primary: #0071e3;
+            --border: #e0e0e0;
+            --shadow: 0 4px 24px rgba(0,0,0,0.06);
+            --radius: 22px;
+            --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "PingFang TC", "Microsoft JhengHei", sans-serif;
+        }
+        body {
+            margin: 0;
+            background: var(--bg);
+            font-family: var(--font);
+            color: #222;
+        }
+        h1 {
+            font-weight: 700;
+            text-align: center;
+            margin-top: 32px;
+            margin-bottom: 12px;
+            letter-spacing: 2px;
+        }
+        .refresh-btn {
+            display: block;
+            margin: 0 auto 36px auto;
+            padding: 12px 36px;
+            font-size: 18px;
+            background: var(--primary);
+            color: #fff;
+            border: none;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .refresh-btn:hover {
+            background: #005bb5;
+        }
+        .container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 32px;
+            max-width: 1200px;
+            margin: 0 auto 60px auto;
+        }
+        .card {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            padding: 28px 24px 24px 24px;
+            min-width: 320px;
+            max-width: 370px;
+            flex: 1 1 320px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            border: 1px solid var(--border);
+            transition: box-shadow 0.2s;
+        }
+        .card:hover {
+            box-shadow: 0 6px 32px rgba(0,0,0,0.13);
+        }
+        .card h2 {
+            font-size: 1.4em;
+            margin: 0 0 18px 0;
+            font-weight: 700;
+            letter-spacing: 1.5px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 7px 4px;
+            text-align: center;
+            font-size: 1em;
+        }
+        th {
+            background: #f2f3f7;
+            font-weight: 600;
+            border-bottom: 1px solid var(--border);
+            color: #4a4a4a;
+        }
+        tr:not(:last-child) td {
+            border-bottom: 1px solid #ececec;
+        }
+        @media (max-width: 900px) {
+            .container { flex-direction: column; align-items: center; }
+        }
+        @media (max-width: 600px) {
+            .card { min-width: 96vw; max-width: 99vw; padding: 16px 4px; }
+            h1 { font-size: 1.3em;}
+        }
+        .footer {
+            text-align: center;
+            color: #9a9a9a;
+            font-size: 15px;
+            margin-bottom: 20px;
+            letter-spacing: 1px;
+        }
+        .loading {
+            margin: 25px 0;
+            color: #aaa;
+            font-size: 18px;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <h1>台灣鐵道即時狀態</h1>
+    <button class="refresh-btn" onclick="fetchAll()">重新整理</button>
+    <div class="container">
+        <div class="card" id="tra-card">
+            <h2>台鐵</h2>
+            <div class="loading" id="tra-loading">載入中...</div>
+            <table style="display:none">
+                <thead>
+                    <tr>
+                        <th>車站</th>
+                        <th>車次</th>
+                        <th>目的地</th>
+                        <th>狀態</th>
+                        <th>預計到達</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+        <div class="card" id="thsr-card">
+            <h2>高鐵</h2>
+            <div class="loading" id="thsr-loading">載入中...</div>
+            <table style="display:none">
+                <thead>
+                    <tr>
+                        <th>出發</th>
+                        <th>車次</th>
+                        <th>目的地</th>
+                        <th>出發時間</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+        <div class="card" id="mrt-card">
+            <h2>台北捷運</h2>
+            <div class="loading" id="mrt-loading">載入中...</div>
+            <table style="display:none">
+                <thead>
+                    <tr>
+                        <th>車站</th>
+                        <th>方向</th>
+                        <th>狀態</th>
+                        <th>到站時間</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+    <div class="footer">資料來源：交通部PTX開放資料平台 | Apple風格介面設計 by Copilot</div>
+    <script>
+        // 台鐵
+        async function fetchTRA() {
+            const loading = document.getElementById('tra-loading');
+            const table = document.querySelector('#tra-card table');
+            const tbody = table.querySelector('tbody');
+            loading.style.display = 'block';
+            table.style.display = 'none';
+            try {
+                const url = 'https://ptx.transportdata.tw/MOTC/v2/Rail/TRA/LiveBoard?$top=8&$format=JSON';
+                const res = await fetch(url);
+                const data = await res.json();
+                tbody.innerHTML = '';
+                data.forEach(item => {
+                    tbody.innerHTML += `
+                      <tr>
+                        <td>${item.StationName.Zh_tw}</td>
+                        <td>${item.TrainNo}</td>
+                        <td>${item.DestinationStationName.Zh_tw}</td>
+                        <td>${item.BoardingStatus}</td>
+                        <td>${item.ScheduledArrivalTime}</td>
+                      </tr>
+                    `;
+                });
+                loading.style.display = 'none';
+                table.style.display = '';
+            } catch (e) {
+                loading.textContent = '載入失敗';
+            }
+        }
+        // 高鐵
+        async function fetchTHSR() {
+            const loading = document.getElementById('thsr-loading');
+            const table = document.querySelector('#thsr-card table');
+            const tbody = table.querySelector('tbody');
+            loading.style.display = 'block';
+            table.style.display = 'none';
+            try {
+                const url = 'https://ptx.transportdata.tw/MOTC/v2/Rail/THSR/DailyTimetable/Today?$top=8&$format=JSON';
+                const res = await fetch(url);
+                const data = await res.json();
+                tbody.innerHTML = '';
+                data.forEach(item => {
+                    tbody.innerHTML += `
+                      <tr>
+                        <td>${item.OriginStationName.Zh_tw}</td>
+                        <td>${item.TrainNo}</td>
+                        <td>${item.DestinationStationName.Zh_tw}</td>
+                        <td>${item.TimetableRow.DepartureTime}</td>
+                      </tr>
+                    `;
+                });
+                loading.style.display = 'none';
+                table.style.display = '';
+            } catch (e) {
+                loading.textContent = '載入失敗';
+            }
+        }
+        // 台北捷運
+        async function fetchMetro() {
+            const loading = document.getElementById('mrt-loading');
+            const table = document.querySelector('#mrt-card table');
+            const tbody = table.querySelector('tbody');
+            loading.style.display = 'block';
+            table.style.display = 'none';
+            try {
+                const url = 'https://ptx.transportdata.tw/MOTC/v2/Rail/Metro/LiveBoard/TPE?$top=8&$format=JSON';
+                const res = await fetch(url);
+                const data = await res.json();
+                tbody.innerHTML = '';
+                data.forEach(item => {
+                    tbody.innerHTML += `
+                      <tr>
+                        <td>${item.StationName.Zh_tw}</td>
+                        <td>${item.Direction}</td>
+                        <td>${item.BoardingStatus || ""}</td>
+                        <td>${item.ScheduledArrivalTime || ""}</td>
+                      </tr>
+                    `;
+                });
+                loading.style.display = 'none';
+                table.style.display = '';
+            } catch (e) {
+                loading.textContent = '載入失敗';
+            }
+        }
+        function fetchAll() {
+            fetchTRA();
+            fetchTHSR();
+            fetchMetro();
+        }
+        // 頁面載入自動刷新
+        window.onload = fetchAll;
+    </script>
+</body>
+</html>
