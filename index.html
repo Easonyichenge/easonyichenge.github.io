@@ -1,264 +1,198 @@
 <!DOCTYPE html>
-<html lang="zh-Hant">
+<html lang="zh-TW">
+
 <head>
     <meta charset="UTF-8">
-    <title>台灣鐵道即時狀態 - Apple Style</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <style>
-        :root {
-            --bg: #f8f8f8;
-            --card-bg: #fff;
-            --primary: #0071e3;
-            --border: #e0e0e0;
-            --shadow: 0 4px 24px rgba(0,0,0,0.06);
-            --radius: 22px;
-            --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "PingFang TC", "Microsoft JhengHei", sans-serif;
-        }
-        body {
-            margin: 0;
-            background: var(--bg);
-            font-family: var(--font);
-            color: #222;
-        }
-        h1 {
-            font-weight: 700;
-            text-align: center;
-            margin-top: 32px;
-            margin-bottom: 12px;
-            letter-spacing: 2px;
-        }
-        .refresh-btn {
-            display: block;
-            margin: 0 auto 36px auto;
-            padding: 12px 36px;
-            font-size: 18px;
-            background: var(--primary);
-            color: #fff;
-            border: none;
-            border-radius: var(--radius);
-            box-shadow: var(--shadow);
-            cursor: pointer;
-            transition: background 0.2s;
-        }
-        .refresh-btn:hover {
-            background: #005bb5;
-        }
-        .container {
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: center;
-            gap: 32px;
-            max-width: 1200px;
-            margin: 0 auto 60px auto;
-        }
-        .card {
-            background: var(--card-bg);
-            border-radius: var(--radius);
-            box-shadow: var(--shadow);
-            padding: 28px 24px 24px 24px;
-            min-width: 320px;
-            max-width: 370px;
-            flex: 1 1 320px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            border: 1px solid var(--border);
-            transition: box-shadow 0.2s;
-        }
-        .card:hover {
-            box-shadow: 0 6px 32px rgba(0,0,0,0.13);
-        }
-        .card h2 {
-            font-size: 1.4em;
-            margin: 0 0 18px 0;
-            font-weight: 700;
-            letter-spacing: 1.5px;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-        th, td {
-            padding: 7px 4px;
-            text-align: center;
-            font-size: 1em;
-        }
-        th {
-            background: #f2f3f7;
-            font-weight: 600;
-            border-bottom: 1px solid var(--border);
-            color: #4a4a4a;
-        }
-        tr:not(:last-child) td {
-            border-bottom: 1px solid #ececec;
-        }
-        @media (max-width: 900px) {
-            .container { flex-direction: column; align-items: center; }
-        }
-        @media (max-width: 600px) {
-            .card { min-width: 96vw; max-width: 99vw; padding: 16px 4px; }
-            h1 { font-size: 1.3em;}
-        }
-        .footer {
-            text-align: center;
-            color: #9a9a9a;
-            font-size: 15px;
-            margin-bottom: 20px;
-            letter-spacing: 1px;
-        }
-        .loading {
-            margin: 25px 0;
-            color: #aaa;
-            font-size: 18px;
-            font-style: italic;
-        }
-    </style>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>台灣大眾運輸即時動態行控中心 | Taiwan Transit OCC</title>
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
-    <h1>台灣鐵道即時狀態</h1>
-    <button class="refresh-btn" onclick="fetchAll()">重新整理</button>
-    <div class="container">
-        <div class="card" id="tra-card">
-            <h2>台鐵</h2>
-            <div class="loading" id="tra-loading">載入中...</div>
-            <table style="display:none">
-                <thead>
-                    <tr>
-                        <th>車站</th>
-                        <th>車次</th>
-                        <th>目的地</th>
-                        <th>狀態</th>
-                        <th>預計到達</th>
-                    </tr>
-                </thead>
-                <tbody></tbody>
-            </table>
-        </div>
-        <div class="card" id="thsr-card">
-            <h2>高鐵</h2>
-            <div class="loading" id="thsr-loading">載入中...</div>
-            <table style="display:none">
-                <thead>
-                    <tr>
-                        <th>出發</th>
-                        <th>車次</th>
-                        <th>目的地</th>
-                        <th>出發時間</th>
-                    </tr>
-                </thead>
-                <tbody></tbody>
-            </table>
-        </div>
-        <div class="card" id="mrt-card">
-            <h2>台北捷運</h2>
-            <div class="loading" id="mrt-loading">載入中...</div>
-            <table style="display:none">
-                <thead>
-                    <tr>
-                        <th>車站</th>
-                        <th>方向</th>
-                        <th>狀態</th>
-                        <th>到站時間</th>
-                    </tr>
-                </thead>
-                <tbody></tbody>
-            </table>
-        </div>
+    <div class="occ-container">
+        <!-- Header / Top Bar -->
+        <header class="occ-header">
+            <div class="header-left">
+                <div class="logo-area">
+                    <h1>台灣大眾運輸即時動態行控中心</h1>
+                </div>
+                <div class="system-status-indicator">
+                    <span class="status-dot"></span>
+                    <span class="status-text">系統正常運作</span>
+                </div>
+            </div>
+            <div class="header-center">
+                <div class="clock-display" id="main-clock">00:00:00</div>
+                <div class="date-display" id="main-date">2024年1月1日</div>
+            </div>
+            <div class="header-right">
+                <button id="theme-toggle" class="theme-btn" aria-label="Toggle Dark Mode">
+                    <span class="icon">🌙</span>
+                </button>
+                <div class="weather-widget">
+                    <span class="weather-icon">🌤</span>
+                    <span class="weather-temp">28°C</span>
+                    <span class="weather-loc">台北市</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content Grid -->
+        <main class="occ-grid">
+            <!-- Left Panel: Network Status -->
+            <aside class="panel left-panel">
+                <div class="panel-header">
+                    <h2>路網狀態監控</h2>
+                </div>
+                <div class="panel-content">
+                    <div class="status-card" id="status-hsr">
+                        <div class="card-header">
+                            <span class="card-title">台灣高鐵 (THSR)</span>
+                            <span class="card-value">98%</span>
+                        </div>
+                        <div class="card-bar">
+                            <div class="fill" style="width: 98%"></div>
+                        </div>
+                    </div>
+                    <div class="status-card" id="status-tra">
+                        <div class="card-header">
+                            <span class="card-title">台灣鐵路 (TRA)</span>
+                            <span class="card-value">92%</span>
+                        </div>
+                        <div class="card-bar">
+                            <div class="fill warning" style="width: 92%"></div>
+                        </div>
+                    </div>
+
+                    <!-- City MRTs -->
+                    <div class="status-card" id="status-trtc">
+                        <div class="card-header">
+                            <span class="card-title">台北捷運 (TRTC)</span>
+                            <span class="card-value">100%</span>
+                        </div>
+                        <div class="card-bar">
+                            <div class="fill" style="width: 100%"></div>
+                        </div>
+                    </div>
+                    <div class="status-card" id="status-krtc">
+                        <div class="card-header">
+                            <span class="card-title">高雄捷運 (KRTC)</span>
+                            <span class="card-value">99%</span>
+                        </div>
+                        <div class="card-bar">
+                            <div class="fill" style="width: 99%"></div>
+                        </div>
+                    </div>
+                    <div class="status-card" id="status-tmrt">
+                        <div class="card-header">
+                            <span class="card-title">台中捷運 (TMRT)</span>
+                            <span class="card-value">100%</span>
+                        </div>
+                        <div class="card-bar">
+                            <div class="fill" style="width: 100%"></div>
+                        </div>
+                    </div>
+                    <div class="status-card" id="status-tymrt">
+                        <div class="card-header">
+                            <span class="card-title">桃園捷運 (TYMRT)</span>
+                            <span class="card-value">98%</span>
+                        </div>
+                        <div class="card-bar">
+                            <div class="fill" style="width: 98%"></div>
+                        </div>
+                    </div>
+                    <div class="status-card" id="status-ntpc">
+                        <div class="card-header">
+                            <span class="card-title">新北輕軌 (NTPC)</span>
+                            <span class="card-value">97%</span>
+                        </div>
+                        <div class="card-bar">
+                            <div class="fill" style="width: 97%"></div>
+                        </div>
+                    </div>
+                </div>
+
     </div>
-    <div class="footer">資料來源：交通部PTX開放資料平台 | Apple風格介面設計 by Copilot</div>
-    <script>
-        // 台鐵
-        async function fetchTRA() {
-            const loading = document.getElementById('tra-loading');
-            const table = document.querySelector('#tra-card table');
-            const tbody = table.querySelector('tbody');
-            loading.style.display = 'block';
-            table.style.display = 'none';
-            try {
-                const url = 'https://ptx.transportdata.tw/MOTC/v2/Rail/TRA/LiveBoard?$top=8&$format=JSON';
-                const res = await fetch(url);
-                const data = await res.json();
-                tbody.innerHTML = '';
-                data.forEach(item => {
-                    tbody.innerHTML += `
-                      <tr>
-                        <td>${item.StationName.Zh_tw}</td>
-                        <td>${item.TrainNo}</td>
-                        <td>${item.DestinationStationName.Zh_tw}</td>
-                        <td>${item.BoardingStatus}</td>
-                        <td>${item.ScheduledArrivalTime}</td>
-                      </tr>
-                    `;
-                });
-                loading.style.display = 'none';
-                table.style.display = '';
-            } catch (e) {
-                loading.textContent = '載入失敗';
-            }
-        }
-        // 高鐵
-        async function fetchTHSR() {
-            const loading = document.getElementById('thsr-loading');
-            const table = document.querySelector('#thsr-card table');
-            const tbody = table.querySelector('tbody');
-            loading.style.display = 'block';
-            table.style.display = 'none';
-            try {
-                const url = 'https://ptx.transportdata.tw/MOTC/v2/Rail/THSR/DailyTimetable/Today?$top=8&$format=JSON';
-                const res = await fetch(url);
-                const data = await res.json();
-                tbody.innerHTML = '';
-                data.forEach(item => {
-                    tbody.innerHTML += `
-                      <tr>
-                        <td>${item.OriginStationName.Zh_tw}</td>
-                        <td>${item.TrainNo}</td>
-                        <td>${item.DestinationStationName.Zh_tw}</td>
-                        <td>${item.TimetableRow.DepartureTime}</td>
-                      </tr>
-                    `;
-                });
-                loading.style.display = 'none';
-                table.style.display = '';
-            } catch (e) {
-                loading.textContent = '載入失敗';
-            }
-        }
-        // 台北捷運
-        async function fetchMetro() {
-            const loading = document.getElementById('mrt-loading');
-            const table = document.querySelector('#mrt-card table');
-            const tbody = table.querySelector('tbody');
-            loading.style.display = 'block';
-            table.style.display = 'none';
-            try {
-                const url = 'https://ptx.transportdata.tw/MOTC/v2/Rail/Metro/LiveBoard/TPE?$top=8&$format=JSON';
-                const res = await fetch(url);
-                const data = await res.json();
-                tbody.innerHTML = '';
-                data.forEach(item => {
-                    tbody.innerHTML += `
-                      <tr>
-                        <td>${item.StationName.Zh_tw}</td>
-                        <td>${item.Direction}</td>
-                        <td>${item.BoardingStatus || ""}</td>
-                        <td>${item.ScheduledArrivalTime || ""}</td>
-                      </tr>
-                    `;
-                });
-                loading.style.display = 'none';
-                table.style.display = '';
-            } catch (e) {
-                loading.textContent = '載入失敗';
-            }
-        }
-        function fetchAll() {
-            fetchTRA();
-            fetchTHSR();
-            fetchMetro();
-        }
-        // 頁面載入自動刷新
-        window.onload = fetchAll;
-    </script>
+    </aside>
+
+    <!-- Center Panel: Map -->
+    <section class="panel map-panel">
+        <div class="map-overlay-top">
+            <div class="stat-item">
+                <span class="label">線上列車</span>
+                <span class="value" id="active-trains-count">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="label">即時運量</span>
+                <span class="value" id="passenger-count">0</span>
+            </div>
+        </div>
+        <div id="map"></div>
+        <div class="map-overlay-bottom">
+            <div class="layer-controls">
+                <button class="layer-btn active" data-layer="hsr">高鐵</button>
+                <button class="layer-btn active" data-layer="tra">台鐵</button>
+                <button class="layer-btn active" data-layer="mrt">捷運/輕軌</button>
+            </div>
+        </div>
+    </section>
+
+    <!-- Right Panel: Details & Analytics -->
+    <aside class="panel right-panel">
+        <div class="panel-header">
+            <h2>即時數據分析</h2>
+        </div>
+        <div class="panel-content">
+            <div class="metric-box">
+                <h3>即時人流趨勢</h3>
+                <div class="chart-container">
+                    <canvas id="passenger-chart"></canvas>
+                </div>
+            </div>
+            <div class="metric-box">
+                <h3>平均營運速率 (km/h)</h3>
+                <div class="chart-container">
+                    <canvas id="speed-chart"></canvas>
+                </div>
+            </div>
+            <div class="metric-box">
+                <h3>事件紀錄</h3>
+                <div class="log-entry">
+                    <span class="time">10:42</span>
+                    <span class="msg">板橋站信號檢測正常</span>
+                </div>
+                <div class="log-entry">
+                    <span class="time">10:38</span>
+                    <span class="msg">台北車站月台人流疏導</span>
+                </div>
+            </div>
+
+            <div class="alert-feed">
+                <h3>即時通告</h3>
+                <ul id="alert-list">
+                    <li class="alert-item info"><span class="alert-tag">資訊</span> 系統初始化完成，開始監控。</li>
+                </ul>
+            </div>
+        </div>
+    </aside>
+    </main>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Routes Data -->
+    <script src="routes.js"></script>
+    <!-- Main JS -->
+    <script src="main.js"></script>
 </body>
+
 </html>
