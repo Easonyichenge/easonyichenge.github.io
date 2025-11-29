@@ -774,7 +774,7 @@ async function fetchQuickStats(cityName) {
     
     if (DOM.statHumidity) DOM.statHumidity.textContent = `${humidity}%`;
     if (DOM.statWind) {
-        DOM.statWind.textContent = gust ? `${windScale}級 (陣${getWindScale(gust)}級)` : `${windScale}級`;
+        DOM.statWind.textContent = gust ? `${windScale} 級 · ${getWindScale(gust)} 級` : `${windScale} 級`;
     }
     if (DOM.statFeels) DOM.statFeels.textContent = `${temp}°`;
 }
