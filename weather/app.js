@@ -369,11 +369,24 @@ function initMap() {
         attributionControl: false
     });
     
-    // 使用 CartoDB Positron (Apple 風格現代化地圖)
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+    // 根據系統主題選擇地圖樣式
+    var isDarkMode = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    var tileUrl = isDarkMode 
+        ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+        : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
+    
+    state.mapTileLayer = L.tileLayer(tileUrl, {
         maxZoom: 19,
         subdomains: 'abcd'
     }).addTo(state.map);
+    
+    // 監聽系統主題變化
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e) {
+        var newTileUrl = e.matches 
+            ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+            : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
+        state.mapTileLayer.setUrl(newTileUrl);
+    });
 }
 
 function loadSettings() {
@@ -1237,7 +1250,7 @@ function renderWeatherObs(stations) {
         // 陣風欄位（只在有陣風時顯示）
         const gustHtml = gustScale ? `
                     <div class="obs-val gust">
-                        <span class="obs-val-num">${gustScale}級</span>
+                        <span class="obs-val-num">${gustScale} 級</span>
                         <span class="obs-val-label">陣風</span>
                     </div>` : '';
         
@@ -1264,7 +1277,7 @@ function renderWeatherObs(stations) {
                         <span class="obs-val-label">濕度</span>
                     </div>
                     <div class="obs-val wind">
-                        <span class="obs-val-num">${windScale}級</span>
+                        <span class="obs-val-num">${windScale} 級</span>
                         <span class="obs-val-label">風速</span>
                     </div>${gustHtml}
                 </div>
