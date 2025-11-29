@@ -2575,7 +2575,7 @@ body {
     }
     
     .advice-items {
-        justify-content: center;
+        justify-content: flex-start;
     }
     
     .typhoon-alert {
