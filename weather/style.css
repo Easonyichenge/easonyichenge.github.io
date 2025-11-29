@@ -2751,6 +2751,7 @@ body {
         font-size: 1rem;
         white-space: nowrap;
         flex: 0 0 auto;
+        order: 0;
     }
     
     .obs-controls {
@@ -2758,13 +2759,13 @@ body {
     }
     
     .tabs {
-        order: -1;
+        order: 1;
         flex: 1;
         justify-content: flex-end;
     }
     
     .search-box {
-        order: 1;
+        order: 2;
         width: 100%;
         flex: 0 0 100%;
     }
