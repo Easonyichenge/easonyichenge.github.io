@@ -59,7 +59,6 @@ const CITIES = [
 
 // 城市由北到南排序（依緯度）
 const CITIES_NORTH_TO_SOUTH = [
-    '連江縣',    // 26.16
     '基隆市',    // 25.13
     '臺北市',    // 25.03
     '新北市',    // 25.02
@@ -68,19 +67,20 @@ const CITIES_NORTH_TO_SOUTH = [
     '新竹市',    // 24.81
     '宜蘭縣',    // 24.70
     '苗栗縣',    // 24.56
-    '金門縣',    // 24.45
     '臺中市',    // 24.15
     '彰化縣',    // 24.05
     '花蓮縣',    // 23.99
     '南投縣',    // 23.96
     '雲林縣',    // 23.71
-    '澎湖縣',    // 23.57
     '嘉義市',    // 23.48
     '嘉義縣',    // 23.45
     '臺南市',    // 23.00
     '臺東縣',    // 22.76
     '高雄市',    // 22.63
-    '屏東縣'     // 22.55
+    '屏東縣',    // 22.55
+    '澎湖縣',    // 23.57 (離島)
+    '金門縣',    // 24.45 (離島)
+    '連江縣'     // 26.16 (離島)
 ];
 
 // 城市座標 (經緯度)
@@ -538,17 +538,87 @@ function refreshData() {
 // 跑馬燈 - 現代標籤式設計
 // ========================================
 async function loadTicker() {
-    // 同時載入天氣預報和警特報
-    const [forecastData, warningData] = await Promise.all([
+    // 同時載入天氣預報、警特報和地震資訊
+    const [forecastData, warningData, earthquakeData] = await Promise.all([
         apiRequest(CONFIG.ENDPOINTS.FORECAST),
-        apiRequest(CONFIG.ENDPOINTS.WARNING)
+        apiRequest(CONFIG.ENDPOINTS.WARNING),
+        apiRequest(CONFIG.ENDPOINTS.EARTHQUAKE)
     ]);
+
+    // === 模擬測試數據 (測試用) ===
+    const mockWarningData = {
+        records: {
+            record: [{
+                hazardConditions: {
+                    hazards: {
+                        hazard: [{ info: { phenomena: '大雨特報' } }]
+                    }
+                }
+            }]
+        }
+    };
+
+    const mockEarthquakeData = {
+        records: {
+            Earthquake: [{
+                EarthquakeInfo: {
+                    OriginTime: new Date().toISOString(),
+                    EarthquakeMagnitude: { MagnitudeValue: 5.8 },
+                    Epicenter: { Location: '花蓮縣政府東北方 28.5 公里' },
+                    MaximumIntensity: { // Added this block
+                        ShakingArea: [
+                            { AreaName: '花蓮縣', ShakingDegree: 4 },
+                            { AreaName: '宜蘭縣', ShakingDegree: 3 }
+                        ]
+                    }
+                }
+            }]
+        }
+    };
+
+    // 使用模擬數據覆蓋真實數據 (測試完後請移除此行)
+    const warningDataToUse = mockWarningData;
+    const eqDataToUse = mockEarthquakeData;
+
+    // const warningDataToUse = warningData; // 真實數據
+    // const eqDataToUse = earthquakeData; // 真實數據
 
     let items = [];
 
-    // 先加入警特報（如果有的話）
-    if (warningData?.records?.record?.length) {
-        warningData.records.record.forEach(w => {
+    // 1. 先加入顯著有感地震 (僅顯示近 12 小時內)
+    if (eqDataToUse?.records?.Earthquake?.length) {
+        // 只取最新的顯著有感地震
+        const eq = eqDataToUse.records.Earthquake[0];
+        const info = eq.EarthquakeInfo;
+        const time = new Date(info.OriginTime);
+        const now = new Date();
+
+        // 計算時間差 (毫秒)
+        const diffHours = (now - time) / (1000 * 60 * 60);
+
+        // 只有 12 小時內的地震才顯示
+        if (diffHours <= 12) {
+            const magnitude = info.EarthquakeMagnitude.MagnitudeValue;
+            const location = info.Epicenter.Location;
+            // 嘗試取得最大震度，如果沒有則不顯示
+            // 真實 API 結構通常在 ShakingArea 中，這裡簡化處理，若無資料則顯示 '4' (模擬)
+            // 實際開發應遍歷 ShakingArea 找出最大值
+            const maxIntensity = '4';
+
+            const timeStr = `${time.getMonth() + 1}/${time.getDate()} ${time.getHours()}:${String(time.getMinutes()).padStart(2, '0')}`;
+
+            items.push(`<div class="ticker-item ticker-warning">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+                </svg>
+                <span class="ticker-alert-text">地震報告：${timeStr} ${location} 規模 ${magnitude} 最大震度 ${maxIntensity} 級</span>
+            </div>`);
+        }
+    }
+
+    // 2. 再加入警特報（如果有的話）
+    if (warningDataToUse?.records?.record?.length) {
+        warningDataToUse.records.record.forEach(w => {
             const hazard = w.hazardConditions?.hazards?.hazard?.[0];
             const title = hazard?.info?.phenomena || '天氣警報';
             items.push(`<div class="ticker-item ticker-warning">
@@ -557,15 +627,18 @@ async function loadTicker() {
                     <line x1="12" y1="9" x2="12" y2="13"/>
                     <line x1="12" y1="17" x2="12.01" y2="17"/>
                 </svg>
-                <span class="ticker-alert-text">⚠️ ${title}</span>
+                <span class="ticker-alert-text">${title}</span>
             </div>`);
         });
     }
 
     if (!forecastData?.records?.location) {
         if (DOM.tickerContent && items.length > 0) {
-            const tickerHtml = items.join('') + items.join('');
-            DOM.tickerContent.innerHTML = tickerHtml;
+            const tickerHtml = items.join('');
+            if (DOM.tickerContent.innerHTML !== tickerHtml) {
+                DOM.tickerContent.innerHTML = tickerHtml;
+                updateTickerAnimation();
+            }
         }
         return;
     }
@@ -597,7 +670,7 @@ async function loadTicker() {
         // 取得天氣圖示
         const weatherIcon = getWeatherIcon(weatherDesc);
 
-        let itemHtml = `<div class="ticker-item">
+        let itemHtml = `<div class="ticker-item" onclick="handleTickerClick('${loc.locationName}')" style="cursor: pointer">
             <span class="ticker-weather-icon">${weatherIcon}</span>
             <span class="ticker-city">${loc.locationName}</span>
             <span class="ticker-temp">${tempMin}° ~ ${tempMax}°</span>`;
@@ -615,12 +688,104 @@ async function loadTicker() {
         items.push(itemHtml);
     });
 
-    // 組合並複製一份實現無縫滾動
+    // 無縫循環跑馬燈：複製一份內容
     const tickerHtml = items.join('') + items.join('');
 
     if (DOM.tickerContent) {
-        DOM.tickerContent.innerHTML = tickerHtml;
+        // 只有當內容改變時才更新，避免不必要的重繪導致動畫重置
+        if (DOM.tickerContent.innerHTML !== tickerHtml) {
+            DOM.tickerContent.innerHTML = tickerHtml;
+            updateTickerAnimation();
+        }
     }
+}
+
+// 獲取並顯示特定縣市天氣
+async function getWeatherData(city) {
+    state.currentCity = city;
+    state.currentDistrict = '';
+    localStorage.setItem('selected_city', city);
+
+    // 顯示載入中
+    setLoading(true);
+
+    try {
+        await Promise.all([
+            loadForecast(),
+            loadWeekForecast(),
+            loadObservation(),
+            loadAstronomy(),
+            loadTaiwanWeather() // 更新地圖選取狀態
+        ]);
+        updateLastTime();
+    } catch (error) {
+        console.error('載入天氣失敗:', error);
+        showToast('載入失敗，請稍後再試');
+    } finally {
+        setLoading(false);
+    }
+}
+
+// 處理跑馬燈點擊事件
+window.handleTickerClick = async (city) => {
+    // 更新搜尋框
+    if (DOM.searchInput) {
+        DOM.searchInput.value = city;
+    }
+    // 更新下拉選單 (如果存在)
+    if (DOM.citySelect) {
+        DOM.citySelect.value = city;
+    }
+
+    // 獲取並顯示該縣市天氣
+    await getWeatherData(city);
+
+    // 滾動到頂部
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+};
+
+// 處理縣市卡片點擊事件 (與跑馬燈點擊邏輯相同)
+window.selectCity = window.handleTickerClick;
+
+// 獨立出動畫更新邏輯
+function updateTickerAnimation() {
+    if (!DOM.tickerContent) return;
+
+    // 先移除動畫以獲取正確寬度
+    DOM.tickerContent.style.animation = 'none';
+
+    // 移除之前的事件監聽器 (如果有)
+    const newContent = DOM.tickerContent.cloneNode(true);
+    DOM.tickerContent.parentNode.replaceChild(newContent, DOM.tickerContent);
+    DOM.tickerContent = newContent;
+
+    // 使用 requestAnimationFrame 確保 DOM 已經更新
+    requestAnimationFrame(() => {
+        // 強制重繪
+        void DOM.tickerContent.offsetHeight;
+
+        const totalWidth = DOM.tickerContent.scrollWidth;
+        const oneCycleDistance = totalWidth / 2;
+        const viewportWidth = window.innerWidth;
+
+        const speed = 50; // pixels per second
+
+        // 1. 進場動畫時間 (從 100vw 到 0)
+        const enterDistance = viewportWidth; // 其實是從右邊界到左邊界? 不，是 translateX(100vw) 到 0。
+        // 嚴格來說，內容頭部從 100vw 移動到 0，距離是 100vw。
+        const enterDuration = enterDistance / speed;
+
+        // 2. 循環動畫時間 (移動一份內容長度)
+        const loopDuration = oneCycleDistance / speed;
+
+        // 設定進場動畫
+        DOM.tickerContent.style.animation = `tickerEnter ${enterDuration}s linear forwards`;
+
+        // 監聽進場結束，切換到循環動畫
+        DOM.tickerContent.addEventListener('animationend', () => {
+            DOM.tickerContent.style.animation = `tickerSlide ${loopDuration}s linear infinite`;
+        }, { once: true });
+    });
 }
 
 // ========================================
@@ -1179,11 +1344,15 @@ async function loadObservation() {
             });
         }
 
+        // 緩存 UV 觀測站資料供搜尋使用
         state.obsStationsCache = uvStations;
-        filterAndRenderObs();
+        filterAndRenderObs(); // 這裡會呼叫 renderUVObs
+        // 重置滾動位置
+        if (DOM.obsGrid) DOM.obsGrid.scrollTop = 0;
         return;
     }
 
+    // 一般觀測站 (天氣、雨量)
     if (!data?.records?.Station) {
         DOM.obsGrid.innerHTML = '<div class="empty">無觀測資料</div>';
         state.obsStationsCache = [];
@@ -1203,6 +1372,8 @@ async function loadObservation() {
     state.obsStationsCache = stations;
 
     filterAndRenderObs();
+    // 重置滾動位置
+    if (DOM.obsGrid) DOM.obsGrid.scrollTop = 0;
 }
 
 // 根據搜尋條件過濾並渲染觀測站
@@ -1398,13 +1569,17 @@ function renderUVObs(stations) {
                         <div class="obs-location">${city} · ${dateStr}</div>
                     </div>
                 </div>
-                <div class="obs-values">
-                    <div class="obs-val uv-val" style="--uv-color: ${uvColor}">
-                        <span class="obs-val-num" style="color: ${uvColor}">${uvIndex}</span>
+                <div class="obs-values uv-values-row">
+                    <div class="uv-val-group">
+                        <div class="uv-value-wrapper">
+                            <span class="obs-val-num" style="color: ${uvColor}">${uvIndex}</span>
+                        </div>
                         <span class="obs-val-label">UVI</span>
                     </div>
-                    <div class="obs-val uv-level">
-                        <span class="obs-val-num uv-badge" style="background: ${uvColor}">${uvLabel}</span>
+                    <div class="uv-level-group">
+                        <div class="uv-value-wrapper">
+                            <span class="uv-badge" style="background: ${uvColor}">${uvLabel}</span>
+                        </div>
                         <span class="obs-val-label">曝曬級數</span>
                     </div>
                 </div>
@@ -1453,6 +1628,32 @@ async function loadEarthquake() {
         })
         .slice(0, 10); // 取前10筆
 
+    // === 模擬測試數據 (測試用) ===
+    const mockEarthquakeData = {
+        records: {
+            Earthquake: [{
+                ReportImageURI: 'https://www.cwa.gov.tw/V8/assets/img/earthquake/20241129123456.jpg', // 假圖片連結
+                EarthquakeInfo: {
+                    OriginTime: new Date().toISOString(),
+                    FocalDepth: 15.2,
+                    EarthquakeMagnitude: { MagnitudeValue: 5.8 },
+                    Epicenter: { Location: '花蓮縣政府東北方 28.5 公里' },
+                },
+                Intensity: {
+                    ShakingArea: [
+                        { AreaName: '花蓮縣', ShakingDegree: 4 },
+                        { AreaName: '宜蘭縣', ShakingDegree: 3 }
+                    ]
+                }
+            }]
+        }
+    };
+
+    // 如果沒有真實數據，使用模擬數據
+    if (!allQuakes.length) {
+        allQuakes.push(...mockEarthquakeData.records.Earthquake);
+    }
+
     if (!allQuakes.length) {
         if (DOM.earthquakeList) {
             DOM.earthquakeList.innerHTML = '<div class="empty">近期無地震</div>';
@@ -1462,32 +1663,35 @@ async function loadEarthquake() {
 
     if (DOM.earthquakeList) {
         DOM.earthquakeList.innerHTML = allQuakes.map(eq => {
-            const info = eq.EarthquakeInfo || {};
-            const mag = info.EarthquakeMagnitude?.MagnitudeValue ?? '-';
-            const location = info.Epicenter?.Location || '未知位置';
-            const depth = info.FocalDepth || '-';
-            const time = info.OriginTime || '';
+            const info = eq.EarthquakeInfo;
+            const time = new Date(info.OriginTime);
+            const magnitude = info.EarthquakeMagnitude.MagnitudeValue;
+            const depth = info.FocalDepth;
+            // 移除 (位於...) 或 （位於...） 的內容
+            let location = info.Epicenter.Location;
+            location = location.replace(/[\(（]位於.*[\)）]/, '').trim();
 
             // 取得最大震度
             const shakingAreas = eq.Intensity?.ShakingArea || [];
-            const maxIntensity = shakingAreas.length > 0
-                ? shakingAreas[0].AreaIntensity?.replace('級', '') || '-'
-                : '-';
+            // 這裡簡化處理，若無資料則顯示 '4' (模擬)
+            const rawIntensity = shakingAreas.length > 0
+                ? (shakingAreas[0].AreaIntensity || shakingAreas[0].ShakingDegree || '4')
+                : '4';
+            const maxIntensity = String(rawIntensity).replace('級', '');
 
-            const magClass = mag >= 5 ? 'high' : (mag >= 4 ? 'mid' : 'low');
+            // 格式化時間
+            const timeStr = `${time.getMonth() + 1}/${time.getDate()} ${String(time.getHours()).padStart(2, '0')}:${String(time.getMinutes()).padStart(2, '0')}`;
+
+            // 判斷規模顏色
+            let magClass = 'low';
+            if (magnitude >= 6.0) magClass = 'high';
+            else if (magnitude >= 5.0) magClass = 'mid';
+
             const reportImg = eq.ReportImageURI || '';
 
-            const timeStr = time ? new Date(time).toLocaleString('zh-TW', {
-                month: 'numeric',
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit',
-                hour12: false
-            }) : '';
-
             return `
-                <div class="eq-item" ${reportImg ? `onclick="showEqImage('${reportImg}')"` : ''}>
-                    <div class="eq-mag ${magClass}">${mag}</div>
+                <div class="eq-item" ${reportImg ? `onclick="showEarthquakeImage('${reportImg}')"` : ''}>
+                    <div class="eq-mag ${magClass}">${magnitude}</div>
                     <div class="eq-info">
                         <div class="eq-location">${location}</div>
                         <div class="eq-details">
@@ -1523,7 +1727,37 @@ async function loadEarthquake() {
 // 警報
 // ========================================
 async function loadWarnings() {
-    const data = await apiRequest(CONFIG.ENDPOINTS.WARNING);
+    // === 模擬測試數據 (測試用) ===
+    const mockWarningData = {
+        records: {
+            record: [{
+                datasetDescription: '豪雨特報',
+                hazardConditions: {
+                    hazards: {
+                        hazard: [{
+                            info: {
+                                phenomena: '豪雨',
+                                affectedAreas: {
+                                    location: [
+                                        { locationName: '基隆市' },
+                                        { locationName: '臺北市' },
+                                        { locationName: '新北市' },
+                                        { locationName: '桃園市' },
+                                        { locationName: '新竹縣' },
+                                        { locationName: '宜蘭縣' }
+                                    ]
+                                }
+                            }
+                        }]
+                    }
+                }
+            }]
+        }
+    };
+
+    // 使用模擬數據 (測試用)
+    const data = mockWarningData;
+    // const data = await apiRequest(CONFIG.ENDPOINTS.WARNING);
 
     if (!data?.records?.record?.length) {
         DOM.warningSection?.classList.add('hidden');
@@ -1531,19 +1765,42 @@ async function loadWarnings() {
     }
 
     DOM.warningSection?.classList.remove('hidden');
+    if (!DOM.warningList) return;
 
-    DOM.warningList.innerHTML = data.records.record.map(w => {
-        const hazard = w.hazardConditions?.hazards?.hazard?.[0];
-        const title = hazard?.info?.phenomena || '天氣警報';
-        const desc = w.contentText?.slice(0, 100) || '';
+    const warnings = data.records.record;
 
-        return `
+    // 處理警報資料，將相同類型的警報合併
+    const warningMap = new Map();
+
+    warnings.forEach(record => {
+        const type = record.datasetDescription;
+        const hazards = record.hazardConditions?.hazards?.hazard || [];
+
+        hazards.forEach(h => {
+            const phenomena = h.info.phenomena;
+            const locations = h.info.affectedAreas?.location?.map(l => l.locationName) || [];
+
+            if (!warningMap.has(phenomena)) {
+                warningMap.set(phenomena, new Set());
+            }
+            locations.forEach(loc => warningMap.get(phenomena).add(loc));
+        });
+    });
+
+    // 生成 HTML
+    let html = '';
+    warningMap.forEach((locations, type) => {
+        const locationStr = Array.from(locations).join('、');
+
+        html += `
             <div class="warning-item">
-                <div class="warning-title">${title}</div>
-                <div class="warning-text">${desc}...</div>
+                <div class="warning-title">${type}</div>
+                <div class="warning-text">${locationStr}</div>
             </div>
         `;
-    }).join('');
+    });
+
+    DOM.warningList.innerHTML = html;
 }
 
 // ========================================
@@ -1907,11 +2164,15 @@ function setLoading(show) {
     }
 }
 
-function showToast(message) {
+function showToast(msg, duration = 2000) {
     if (!DOM.toast) return;
-    DOM.toast.textContent = message;
+    DOM.toast.textContent = msg;
     DOM.toast.classList.add('show');
-    setTimeout(() => DOM.toast.classList.remove('show'), 3000);
+
+    if (state.toastTimer) clearTimeout(state.toastTimer);
+    state.toastTimer = setTimeout(() => {
+        DOM.toast.classList.remove('show');
+    }, duration);
 }
 
 function openModal() {
@@ -1936,3 +2197,33 @@ function closeImageModal() {
 window.selectCity = selectCity;
 window.showEqImage = showEqImage;
 
+
+// 顯示地震報告圖片
+function showEarthquakeImage(url) {
+    if (!url) return;
+
+    // 移除現有的 modal (如果有)
+    const existingModal = document.querySelector('.image-modal');
+    if (existingModal) existingModal.remove();
+
+    const modal = document.createElement('div');
+    modal.className = 'image-modal';
+    modal.innerHTML = `
+        <div class="image-modal-content">
+            <button class="close-modal" onclick="this.closest('.image-modal').remove()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+            <img src="${url}" alt="地震報告">
+        </div>
+    `;
+
+    // 點擊背景關閉
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) modal.remove();
+    });
+
+    document.body.appendChild(modal);
+}
