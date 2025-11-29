@@ -2750,7 +2750,7 @@ body {
     .obs-section .card-head h3 {
         font-size: 1rem;
         white-space: nowrap;
-        flex: 0 0 auto;
+        flex: 1;
         order: 0;
     }
     
@@ -2760,8 +2760,7 @@ body {
     
     .tabs {
         order: 1;
-        flex: 1;
-        justify-content: flex-end;
+        flex: 0 0 auto;
     }
     
     .search-box {
