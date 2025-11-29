@@ -1493,7 +1493,7 @@ async function loadEarthquake() {
                         <div class="eq-details">
                             <span class="eq-detail">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M12 22V8M5 12l7-4 7 4"/>
+                                    <polyline points="6 9 12 15 18 9"/>
                                 </svg>
                                 ${depth}km
                             </span>
