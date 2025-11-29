@@ -2750,29 +2750,28 @@ body {
     .obs-section .card-head h3 {
         font-size: 1rem;
         white-space: nowrap;
+        flex: 0 0 auto;
     }
     
     .obs-controls {
-        display: flex;
-        flex-direction: row;
-        align-items: center;
-        gap: 0.5rem;
+        display: contents;
+    }
+    
+    .tabs {
+        order: -1;
         flex: 1;
         justify-content: flex-end;
     }
     
     .search-box {
-        flex: 1;
-        max-width: 140px;
+        order: 1;
+        width: 100%;
+        flex: 0 0 100%;
     }
     
     .search-box input {
-        width: 60px;
+        width: 100%;
         flex: 1;
-    }
-    
-    .tabs {
-        flex-shrink: 0;
     }
     
     .tab {
