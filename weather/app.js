@@ -545,43 +545,8 @@ async function loadTicker() {
         apiRequest(CONFIG.ENDPOINTS.EARTHQUAKE)
     ]);
 
-    // === 模擬測試數據 (測試用) ===
-    const mockWarningData = {
-        records: {
-            record: [{
-                hazardConditions: {
-                    hazards: {
-                        hazard: [{ info: { phenomena: '大雨特報' } }]
-                    }
-                }
-            }]
-        }
-    };
-
-    const mockEarthquakeData = {
-        records: {
-            Earthquake: [{
-                EarthquakeInfo: {
-                    OriginTime: new Date().toISOString(),
-                    EarthquakeMagnitude: { MagnitudeValue: 5.8 },
-                    Epicenter: { Location: '花蓮縣政府東北方 28.5 公里' },
-                    MaximumIntensity: { // Added this block
-                        ShakingArea: [
-                            { AreaName: '花蓮縣', ShakingDegree: 4 },
-                            { AreaName: '宜蘭縣', ShakingDegree: 3 }
-                        ]
-                    }
-                }
-            }]
-        }
-    };
-
-    // 使用模擬數據覆蓋真實數據 (測試完後請移除此行)
-    const warningDataToUse = mockWarningData;
-    const eqDataToUse = mockEarthquakeData;
-
-    // const warningDataToUse = warningData; // 真實數據
-    // const eqDataToUse = earthquakeData; // 真實數據
+    const warningDataToUse = warningData; // 真實數據
+    const eqDataToUse = earthquakeData; // 真實數據
 
     let items = [];
 
@@ -1628,31 +1593,7 @@ async function loadEarthquake() {
         })
         .slice(0, 10); // 取前10筆
 
-    // === 模擬測試數據 (測試用) ===
-    const mockEarthquakeData = {
-        records: {
-            Earthquake: [{
-                ReportImageURI: 'https://www.cwa.gov.tw/V8/assets/img/earthquake/20241129123456.jpg', // 假圖片連結
-                EarthquakeInfo: {
-                    OriginTime: new Date().toISOString(),
-                    FocalDepth: 15.2,
-                    EarthquakeMagnitude: { MagnitudeValue: 5.8 },
-                    Epicenter: { Location: '花蓮縣政府東北方 28.5 公里' },
-                },
-                Intensity: {
-                    ShakingArea: [
-                        { AreaName: '花蓮縣', ShakingDegree: 4 },
-                        { AreaName: '宜蘭縣', ShakingDegree: 3 }
-                    ]
-                }
-            }]
-        }
-    };
 
-    // 如果沒有真實數據，使用模擬數據
-    if (!allQuakes.length) {
-        allQuakes.push(...mockEarthquakeData.records.Earthquake);
-    }
 
     if (!allQuakes.length) {
         if (DOM.earthquakeList) {
@@ -1727,37 +1668,7 @@ async function loadEarthquake() {
 // 警報
 // ========================================
 async function loadWarnings() {
-    // === 模擬測試數據 (測試用) ===
-    const mockWarningData = {
-        records: {
-            record: [{
-                datasetDescription: '豪雨特報',
-                hazardConditions: {
-                    hazards: {
-                        hazard: [{
-                            info: {
-                                phenomena: '豪雨',
-                                affectedAreas: {
-                                    location: [
-                                        { locationName: '基隆市' },
-                                        { locationName: '臺北市' },
-                                        { locationName: '新北市' },
-                                        { locationName: '桃園市' },
-                                        { locationName: '新竹縣' },
-                                        { locationName: '宜蘭縣' }
-                                    ]
-                                }
-                            }
-                        }]
-                    }
-                }
-            }]
-        }
-    };
-
-    // 使用模擬數據 (測試用)
-    const data = mockWarningData;
-    // const data = await apiRequest(CONFIG.ENDPOINTS.WARNING);
+    const data = await apiRequest(CONFIG.ENDPOINTS.WARNING);
 
     if (!data?.records?.record?.length) {
         DOM.warningSection?.classList.add('hidden');
