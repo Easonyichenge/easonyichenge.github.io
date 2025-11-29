@@ -784,12 +784,20 @@ async function fetchQuickStats(cityName) {
     const gust = obs.GustInfo?.PeakGustSpeed ?? null;
     
     const windScale = getWindScale(parseFloat(wind));
+    const gustScale = gust ? getWindScale(parseFloat(gust)) : 0;
+    var hasGust = gust && gustScale > 0;
     
-    if (DOM.statHumidity) DOM.statHumidity.textContent = `${humidity}%`;
+    if (DOM.statHumidity) DOM.statHumidity.textContent = humidity + '%';
     if (DOM.statWind) {
-        DOM.statWind.textContent = gust ? `${windScale} 級 · ${getWindScale(gust)} 級` : `${windScale} 級`;
+        // 陣風為 0 級或沒有陣風資料時，只顯示風速
+        DOM.statWind.textContent = hasGust ? (windScale + ' 級 · ' + gustScale + ' 級') : (windScale + ' 級');
+        // 更新標籤
+        var windLabel = DOM.statWind.parentElement.querySelector('.stat-name');
+        if (windLabel) {
+            windLabel.textContent = hasGust ? '風速 · 陣風' : '風速';
+        }
     }
-    if (DOM.statFeels) DOM.statFeels.textContent = `${temp}°`;
+    if (DOM.statFeels) DOM.statFeels.textContent = temp + '°';
 }
 
 function renderForecastCards(locations) {
