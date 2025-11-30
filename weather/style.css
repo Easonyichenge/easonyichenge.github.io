@@ -63,7 +63,9 @@ body {
 
 /* ===== Ticker - Modern Tag Style ===== */
 .ticker {
-    position: relative;
+    position: sticky;
+    top: 64px;
+    z-index: 90;
     height: 52px;
     background: rgba(255, 255, 255, 0.85);
     backdrop-filter: blur(20px);
@@ -86,6 +88,10 @@ body {
     /* 確保至少填滿螢幕 */
     will-change: transform;
     /* 優化渲染 */
+}
+
+.ticker-track:hover {
+    animation-play-state: paused !important;
 }
 
 .ticker-item {
