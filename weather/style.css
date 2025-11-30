@@ -1921,6 +1921,10 @@ body {
         height: 56px;
     }
 
+    .ticker {
+        top: 56px;
+    }
+
     .header-left {
         gap: 0.5rem;
     }
