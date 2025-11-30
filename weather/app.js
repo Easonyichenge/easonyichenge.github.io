@@ -572,7 +572,10 @@ async function loadTicker() {
 
             const timeStr = `${time.getMonth() + 1}/${time.getDate()} ${time.getHours()}:${String(time.getMinutes()).padStart(2, '0')}`;
 
-            items.push(`<div class="ticker-item ticker-warning">
+            const reportImg = eq.ReportImageURI || '';
+            const clickHandler = reportImg ? `onclick="showEarthquakeImage('${reportImg}')" style="cursor: pointer;"` : '';
+
+            items.push(`<div class="ticker-item ticker-warning" ${clickHandler}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
                 </svg>
@@ -769,6 +772,59 @@ function getWeatherIcon(desc) {
 }
 
 // ========================================
+// 動態背景 - 根據天氣和時間
+// ========================================
+function getHeroBackground(weatherDesc) {
+    const now = new Date();
+    const hour = now.getHours();
+
+    // 判斷是白天還是晚上 (6:00-18:00 為白天)
+    const isDaytime = hour >= 6 && hour < 18;
+
+    // 根據天氣和時間選擇背景
+    if (weatherDesc.includes('雷')) {
+        // 雷雨 - 深灰色
+        return 'linear-gradient(135deg, #434343 0%, #000000 100%)';
+    } else if (weatherDesc.includes('雨')) {
+        // 下雨
+        if (isDaytime) {
+            return 'linear-gradient(135deg, #536976 0%, #292E49 100%)';
+        } else {
+            return 'linear-gradient(135deg, #2C3E50 0%, #000000 100%)';
+        }
+    } else if (weatherDesc.includes('陰')) {
+        // 陰天
+        if (isDaytime) {
+            return 'linear-gradient(135deg, #757F9A 0%, #D7DDE8 100%)';
+        } else {
+            return 'linear-gradient(135deg, #232526 0%, #414345 100%)';
+        }
+    } else if (weatherDesc.includes('晴')) {
+        // 晴天
+        if (isDaytime) {
+            return 'linear-gradient(135deg, #4CA1AF 0%, #C4E0E5 100%)';
+        } else {
+            // 晚上晴天 - 深藍夜空
+            return 'linear-gradient(135deg, #0F2027 0%, #203A43 50%, #2C5364 100%)';
+        }
+    } else if (weatherDesc.includes('雲')) {
+        // 多雲
+        if (isDaytime) {
+            return 'linear-gradient(135deg, #8E9EAB 0%, #EEF2F3 100%)';
+        } else {
+            return 'linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)';
+        }
+    } else {
+        // 預設
+        if (isDaytime) {
+            return 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+        } else {
+            return 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)';
+        }
+    }
+}
+
+// ========================================
 // 天氣預報
 // ========================================
 async function loadForecast() {
@@ -807,9 +863,23 @@ function renderHeroWeather(location) {
     const tempMin = minT?.time?.[0]?.parameter?.parameterName || '-';
     const tempMax = maxT?.time?.[0]?.parameter?.parameterName || '-';
     const comfort = ci?.time?.[0]?.parameter?.parameterName || '';
+
+    // 判斷當前是白天還是晚上
+    const now = new Date();
+    const hour = now.getHours();
+    const isDaytime = hour >= 6 && hour < 18;
     const rainProb = parseInt(pop?.time?.[0]?.parameter?.parameterName || '0');
 
-    const weatherIcon = getWeatherIcon(desc);
+    let weatherIcon = getWeatherIcon(desc);
+    // 晚上將太陽圖示改為月亮
+    if (!isDaytime && weatherIcon === ICONS.sun) {
+        weatherIcon = ICONS.moon;
+    } else if (!isDaytime && weatherIcon === ICONS.cloudSun) {
+        weatherIcon = ICONS.cloud;
+    }
+
+    // 取得動態背景
+    const bgGradient = getHeroBackground(desc);
 
     // 生成穿著建議
     const advice = getWeatherAdvice(desc, tempMin, tempMax, rainProb);
@@ -835,11 +905,11 @@ function renderHeroWeather(location) {
             </div>
             <div class="hero-icon">${weatherIcon}</div>
         </div>
-        <div class="hero-advice">
-            <div class="advice-title">今日建議</div>
-            <div class="advice-items">${advice}</div>
-        </div>
+        <div class="advice-items">${advice}</div>
     `;
+
+    // 應用動態背景
+    DOM.heroWeather.style.background = bgGradient;
 
     // 更新降雨機率
     if (DOM.statRain) DOM.statRain.textContent = `${rainProb}%`;
@@ -993,7 +1063,7 @@ function renderForecastCards(locations) {
         DOM.forecastScroll.innerHTML = cardsHtml;
     } else {
         // 選擇城市後，先顯示36小時預報，然後載入一週預報
-        if (forecastTitle) forecastTitle.innerHTML = `${forecastIcon}${state.currentCity}天氣預報`;
+        if (forecastTitle) forecastTitle.innerHTML = `${forecastIcon}36 小時天氣預報`;
         const loc = locations.find(l => l.locationName === state.currentCity);
         if (loc) {
             render36HourForecast(loc);
@@ -1036,6 +1106,7 @@ function render36HourForecast(loc) {
 
         // 判斷時段（早上、下午、晚上）
         const hour = startTime.getHours();
+        const isDaytime = hour >= 6 && hour < 18;
         let periodLabel = '';
         if (hour >= 6 && hour < 12) periodLabel = '上午';
         else if (hour >= 12 && hour < 18) periodLabel = '下午';
@@ -1050,6 +1121,14 @@ function render36HourForecast(loc) {
         }
         shownPeriods.add(periodKey);
 
+        // 根據時間調整天氣圖示
+        let weatherIcon = getWeatherIcon(desc);
+        if (!isDaytime && weatherIcon === ICONS.sun) {
+            weatherIcon = ICONS.moon;
+        } else if (!isDaytime && weatherIcon === ICONS.cloudSun) {
+            weatherIcon = ICONS.cloud;
+        }
+
         // 判斷是否為今天
         const forecastDate = new Date(startTime);
         forecastDate.setHours(0, 0, 0, 0);
@@ -1060,7 +1139,7 @@ function render36HourForecast(loc) {
             <div class="city-card forecast-card">
                 <div class="city-card-weekday">${dayLabel}</div>
                 <div class="city-card-name">${dateStr} ${periodLabel}</div>
-                <div class="city-card-icon">${getWeatherIcon(desc)}</div>
+                <div class="city-card-icon">${weatherIcon}</div>
                 <div class="city-card-temp">
                     <span class="temp-range">${tMin}°~${tMax}°</span>
                 </div>
@@ -1341,7 +1420,6 @@ async function loadObservation() {
     if (DOM.obsGrid) DOM.obsGrid.scrollTop = 0;
 }
 
-// 根據搜尋條件過濾並渲染觀測站
 function filterAndRenderObs() {
     let stations = state.obsStationsCache;
 
@@ -1392,13 +1470,58 @@ function renderWeatherObs(stations) {
         const gust = obs.GustInfo?.PeakGustSpeed ?? null;
         const windScale = getWindScale(parseFloat(wind));
         const gustScale = gust ? getWindScale(parseFloat(gust)) : null;
+        const weather = obs.Weather || '';
 
-        // 陣風欄位（只在有陣風時顯示）
+        // 判斷當前是白天還是晚上
+        const now = new Date();
+        const hour = now.getHours();
+        const isDaytime = hour >= 6 && hour < 18;
+
+        // 根據時間、溫度和天氣狀況判斷圖示
+        let weatherIcon = '';
+
+        if (weather) {
+            weatherIcon = getWeatherIcon(weather);
+            // 如果是晚上且圖示是太陽，改為月亮
+            if (!isDaytime && weatherIcon === ICONS.sun) {
+                weatherIcon = ICONS.moon;
+            } else if (!isDaytime && weatherIcon === ICONS.cloudSun) {
+                // 晚上的雲+太陽改為雲
+                weatherIcon = ICONS.cloud;
+            }
+        } else {
+            // 如果沒有天氣描述，根據溫度和時間給出簡單圖示
+            const tempValue = parseFloat(temp);
+            if (!isNaN(tempValue)) {
+                if (isDaytime) {
+                    // 白天
+                    if (tempValue >= 30) {
+                        weatherIcon = ICONS.sun;
+                    } else if (tempValue >= 25) {
+                        weatherIcon = ICONS.cloudSun;
+                    } else {
+                        weatherIcon = ICONS.cloud;
+                    }
+                } else {
+                    // 晚上
+                    if (tempValue >= 25) {
+                        weatherIcon = ICONS.moon;
+                    } else {
+                        weatherIcon = ICONS.cloud;
+                    }
+                }
+            }
+        }
+
+        // 陣風作為獨立第四欄
         const gustHtml = gustScale ? `
                     <div class="obs-val gust">
                         <span class="obs-val-num">${gustScale} 級</span>
                         <span class="obs-val-label">陣風</span>
                     </div>` : '';
+
+        // 根據是否有陣風調整 grid columns
+        const gridClass = gustScale ? 'obs-values obs-values-four' : 'obs-values';
 
         return `
             <div class="obs-item">
@@ -1408,12 +1531,13 @@ function renderWeatherObs(stations) {
                             <path d="M14 14.76V3.5a2.5 2.5 0 00-5 0v11.26a4.5 4.5 0 105 0z"/>
                         </svg>
                     </div>
-                    <div>
+                    <div class="obs-header-info">
                         <div class="obs-name">${name}</div>
                         <div class="obs-location">${county} ${town}</div>
                     </div>
+                    ${weatherIcon ? `<div class="obs-weather-icon-right">${weatherIcon}</div>` : ''}
                 </div>
-                <div class="obs-values">
+                <div class="${gridClass}">
                     <div class="obs-val temp">
                         <span class="obs-val-num">${temp}°</span>
                         <span class="obs-val-label">溫度</span>
@@ -1468,11 +1592,11 @@ function renderRainObs(stations) {
                     </div>
                     <div class="obs-val">
                         <span class="obs-val-num">${hour}</span>
-                        <span class="obs-val-label">1小時</span>
+                        <span class="obs-val-label">1 小時</span>
                     </div>
                     <div class="obs-val">
                         <span class="obs-val-num">${day}</span>
-                        <span class="obs-val-label">24小時</span>
+                        <span class="obs-val-label">24 小時</span>
                     </div>
                 </div>
             </div>
@@ -1966,6 +2090,11 @@ function renderCityList(locations) {
         return orderA - orderB;
     });
 
+    // 判斷當前是白天還是晚上
+    const now = new Date();
+    const hour = now.getHours();
+    const isDaytime = hour >= 6 && hour < 18;
+
     let html = '';
 
     sortedLocations.forEach(loc => {
@@ -1982,9 +2111,17 @@ function renderCityList(locations) {
 
         const isActive = loc.locationName === state.currentCity;
 
+        let weatherIcon = getWeatherIcon(desc);
+        // 晚上將太陽圖示改為月亮
+        if (!isDaytime && weatherIcon === ICONS.sun) {
+            weatherIcon = ICONS.moon;
+        } else if (!isDaytime && weatherIcon === ICONS.cloudSun) {
+            weatherIcon = ICONS.cloud;
+        }
+
         html += `
             <div class="city-row ${isActive ? 'active' : ''}" onclick="selectCity('${loc.locationName}')">
-                <div class="city-row-icon">${getWeatherIcon(desc)}</div>
+                <div class="city-row-icon">${weatherIcon}</div>
                 <div class="city-row-name">${loc.locationName}</div>
                 <div class="city-row-temps">
                     <span class="city-row-temp high">${ICONS.arrowUp}${tempMax}°</span>
@@ -2138,3 +2275,6 @@ function showEarthquakeImage(url) {
 
     document.body.appendChild(modal);
 }
+
+// 將函數導出到 window，讓 HTML onclick 可以使用
+window.showEarthquakeImage = showEarthquakeImage;

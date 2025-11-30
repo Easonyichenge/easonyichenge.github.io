@@ -423,7 +423,11 @@ body {
     min-height: 240px;
     position: relative;
     overflow: hidden;
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    /* Remove border that causes unfilled edges */
+    /* border: 1px solid rgba(255, 255, 255, 0.1); */
+    /* Force hardware acceleration for proper clipping */
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
 }
 
 .hero-empty {
@@ -932,6 +936,11 @@ body {
     border-bottom: 1px solid var(--border);
 }
 
+.obs-header-info {
+    flex: 1;
+    min-width: 0;
+}
+
 .obs-icon {
     width: 36px;
     height: 36px;
@@ -941,6 +950,7 @@ body {
     align-items: center;
     justify-content: center;
     color: var(--blue);
+    flex-shrink: 0;
 }
 
 .obs-icon svg {
@@ -955,14 +965,41 @@ body {
 }
 
 .obs-location {
-    font-size: 0.75rem;
+    font-size: 0.8125rem;
     color: var(--text-secondary);
+}
+
+.obs-weather-icon-right {
+    width: 28px;
+    height: 28px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: auto;
+}
+
+.obs-weather-icon-right svg {
+    width: 100%;
+    height: 100%;
+}
+
+.obs-gust-inline {
+    font-size: 0.75rem;
+    color: var(--orange);
+    font-weight: 500;
+    display: block;
+    margin-top: 0.125rem;
 }
 
 .obs-values {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 0.5rem;
+}
+
+.obs-values-four {
+    grid-template-columns: repeat(4, 1fr);
 }
 
 .obs-val {
