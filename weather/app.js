@@ -408,7 +408,7 @@ function bindEvents() {
         state.currentCity = e.target.value;
         state.currentDistrict = '';
         localStorage.setItem('selected_city', e.target.value);
-        loadAllData();
+        loadCityData(); // 使用 loadCityData 而非 loadAllData，避免跑馬燈重跑
     });
 
     DOM.autoLocateBtn?.addEventListener('click', autoLocate);
@@ -531,6 +531,22 @@ function refreshData() {
     ]).finally(() => {
         updateLastTime();
         showToast('資料已更新');
+    });
+}
+
+// 載入縣市相關資料（不重新載入跑馬燈，避免動畫重置）
+function loadCityData() {
+    setLoading(true);
+
+    Promise.all([
+        loadForecast(),
+        loadWeekForecast(),
+        loadObservation(),
+        loadAstronomy(),
+        loadTaiwanWeather()
+    ]).finally(() => {
+        setLoading(false);
+        updateLastTime();
     });
 }
 
