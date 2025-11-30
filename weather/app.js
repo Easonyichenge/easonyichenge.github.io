@@ -17,7 +17,7 @@ const CONFIG = {
         UV_INDEX: 'O-A0005-001',            // 紫外線指數
         EARTHQUAKE: 'E-A0015-001',         // 顯著有感地震
         EARTHQUAKE_SMALL: 'E-A0016-001',   // 小區域有感地震
-        WARNING: 'W-C0033-001',
+        WARNING: 'W-C0033-002',  // 使用詳細版警特報（包含 contentText）
         TYPHOON: 'W-C0034-005',
         SUNRISE: 'A-B0062-001',
         MOONRISE: 'A-B0063-001'
@@ -555,21 +555,30 @@ function loadCityData() {
 // ========================================
 async function loadTicker() {
     // 同時載入天氣預報、警特報和地震資訊
-    const [forecastData, warningData, earthquakeData] = await Promise.all([
+    const [forecastData, warningData, significantEqData, smallEqData] = await Promise.all([
         apiRequest(CONFIG.ENDPOINTS.FORECAST),
         apiRequest(CONFIG.ENDPOINTS.WARNING),
-        apiRequest(CONFIG.ENDPOINTS.EARTHQUAKE)
+        apiRequest(CONFIG.ENDPOINTS.EARTHQUAKE),
+        apiRequest(CONFIG.ENDPOINTS.EARTHQUAKE_SMALL)
     ]);
 
     const warningDataToUse = warningData; // 真實數據
-    const eqDataToUse = earthquakeData; // 真實數據
+
+    // 合併地震資料
+    const significantQuakes = significantEqData?.records?.Earthquake || [];
+    const smallQuakes = smallEqData?.records?.Earthquake || [];
+    const allQuakes = [...significantQuakes, ...smallQuakes].sort((a, b) => {
+        const timeA = new Date(a.EarthquakeInfo?.OriginTime || 0);
+        const timeB = new Date(b.EarthquakeInfo?.OriginTime || 0);
+        return timeB - timeA;
+    });
 
     let items = [];
 
-    // 1. 先加入顯著有感地震 (僅顯示近 12 小時內)
-    if (eqDataToUse?.records?.Earthquake?.length) {
-        // 只取最新的顯著有感地震
-        const eq = eqDataToUse.records.Earthquake[0];
+    // 1. 先加入最新的地震 (僅顯示近 12 小時內)
+    if (allQuakes.length > 0) {
+        // 只取最新的地震
+        const eq = allQuakes[0];
         const info = eq.EarthquakeInfo;
         const time = new Date(info.OriginTime);
         const now = new Date();
@@ -581,10 +590,13 @@ async function loadTicker() {
         if (diffHours <= 12) {
             const magnitude = info.EarthquakeMagnitude.MagnitudeValue;
             const location = info.Epicenter.Location;
-            // 嘗試取得最大震度，如果沒有則不顯示
-            // 真實 API 結構通常在 ShakingArea 中，這裡簡化處理，若無資料則顯示 '4' (模擬)
-            // 實際開發應遍歷 ShakingArea 找出最大值
-            const maxIntensity = '4';
+
+            // 取得最大震度
+            const shakingAreas = eq.Intensity?.ShakingArea || [];
+            const rawIntensity = shakingAreas.length > 0
+                ? (shakingAreas[0].AreaIntensity || shakingAreas[0].ShakingDegree || '4')
+                : '4';
+            const maxIntensity = String(rawIntensity).replace('級', '');
 
             const timeStr = `${time.getMonth() + 1}/${time.getDate()} ${time.getHours()}:${String(time.getMinutes()).padStart(2, '0')}`;
 
@@ -602,9 +614,8 @@ async function loadTicker() {
 
     // 2. 再加入警特報（如果有的話）
     if (warningDataToUse?.records?.record?.length) {
-        warningDataToUse.records.record.forEach(w => {
-            const hazard = w.hazardConditions?.hazards?.hazard?.[0];
-            const title = hazard?.info?.phenomena || '天氣警報';
+        warningDataToUse.records.record.forEach(record => {
+            const title = record.datasetInfo?.datasetDescription || '氣象特報';
             items.push(`<div class="ticker-item ticker-warning">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
@@ -1714,24 +1725,22 @@ function getWindScale(speed) {
 // 地震
 // ========================================
 async function loadEarthquake() {
-    // 同時請求顯著地震和小區域地震
-    const [mainData, smallData] = await Promise.all([
+    const [significantData, smallData] = await Promise.all([
         apiRequest(CONFIG.ENDPOINTS.EARTHQUAKE),
         apiRequest(CONFIG.ENDPOINTS.EARTHQUAKE_SMALL)
     ]);
 
-    // 合併兩種地震資料
-    const mainQuakes = mainData?.records?.Earthquake || [];
+    const significantQuakes = significantData?.records?.Earthquake || [];
     const smallQuakes = smallData?.records?.Earthquake || [];
 
-    // 合併並按時間排序
-    const allQuakes = [...mainQuakes, ...smallQuakes]
+    // 合併並依時間排序
+    const allQuakes = [...significantQuakes, ...smallQuakes]
         .sort((a, b) => {
             const timeA = new Date(a.EarthquakeInfo?.OriginTime || 0);
             const timeB = new Date(b.EarthquakeInfo?.OriginTime || 0);
             return timeB - timeA; // 新的在前
         })
-        .slice(0, 10); // 取前10筆
+        .slice(0, 15); // 取前15筆 (增加顯示數量以容納更多小區域地震)
 
 
 
@@ -1809,44 +1818,73 @@ async function loadEarthquake() {
 // ========================================
 async function loadWarnings() {
     const data = await apiRequest(CONFIG.ENDPOINTS.WARNING);
+    console.log('警特報 API 回應:', data);
 
+    // W-C0033-002 回傳的是 records.record 結構
     if (!data?.records?.record?.length) {
+        console.log('目前沒有警特報資料');
         DOM.warningSection?.classList.add('hidden');
         return;
     }
 
+    console.log('發現警特報:', data.records.record.length, '筆');
+
     DOM.warningSection?.classList.remove('hidden');
     if (!DOM.warningList) return;
 
-    const warnings = data.records.record;
-
-    // 處理警報資料，將相同類型的警報合併
-    const warningMap = new Map();
-
-    warnings.forEach(record => {
-        const type = record.datasetDescription;
-        const hazards = record.hazardConditions?.hazards?.hazard || [];
-
-        hazards.forEach(h => {
-            const phenomena = h.info.phenomena;
-            const locations = h.info.affectedAreas?.location?.map(l => l.locationName) || [];
-
-            if (!warningMap.has(phenomena)) {
-                warningMap.set(phenomena, new Set());
-            }
-            locations.forEach(loc => warningMap.get(phenomena).add(loc));
-        });
-    });
-
     // 生成 HTML
     let html = '';
-    warningMap.forEach((locations, type) => {
-        const locationStr = Array.from(locations).join('、');
+
+    data.records.record.forEach(record => {
+        const datasetInfo = record.datasetInfo;
+        const content = record.contents?.content;
+        const hazard = record.hazardConditions?.hazards?.hazard?.[0];
+
+        if (!datasetInfo) return;
+
+        const title = datasetInfo.datasetDescription || '氣象特報';
+        const phenomena = hazard?.info?.phenomena || '';
+        const significance = hazard?.info?.significance || '';
+        const contentText = content?.contentText || '';
+
+        // 格式化時間
+        let timeStr = '';
+        if (datasetInfo.validTime?.startTime && datasetInfo.validTime?.endTime) {
+            const start = new Date(datasetInfo.validTime.startTime);
+            const end = new Date(datasetInfo.validTime.endTime);
+            const formatTime = (date) => {
+                const month = date.getMonth() + 1;
+                const day = date.getDate();
+                const hours = String(date.getHours()).padStart(2, '0');
+                const minutes = String(date.getMinutes()).padStart(2, '0');
+                return `${month}/${day} ${hours}:${minutes}`;
+            };
+            timeStr = `<div class="warning-time">生效時間：${formatTime(start)} ~ ${formatTime(end)}</div>`;
+        }
+
+        // 發布和更新時間
+        let issueInfo = '';
+        if (datasetInfo.issueTime) {
+            const issueDate = new Date(datasetInfo.issueTime);
+            const formatDateTime = (date) => {
+                const month = date.getMonth() + 1;
+                const day = date.getDate();
+                const hours = String(date.getHours()).padStart(2, '0');
+                const minutes = String(date.getMinutes()).padStart(2, '0');
+                return `${month}/${day} ${hours}:${minutes}`;
+            };
+            issueInfo = `<div class="warning-issue">發布時間：${formatDateTime(issueDate)}</div>`;
+        }
+
+        // 處理描述文字（保留換行和格式）
+        const formattedContent = contentText.trim().replace(/\n/g, '<br>');
 
         html += `
             <div class="warning-item">
-                <div class="warning-title">${type}</div>
-                <div class="warning-text">${locationStr}</div>
+                <div class="warning-title">${title}</div>
+                ${issueInfo}
+                ${timeStr}
+                <div class="warning-content">${formattedContent}</div>
             </div>
         `;
     });
