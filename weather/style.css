@@ -1888,15 +1888,15 @@ body {
         order: 6;
     }
 
-    .earthquake-section {
+    .warning-section {
         order: 7;
     }
 
-    .astro-section {
+    .earthquake-section {
         order: 8;
     }
 
-    .warning-card {
+    .astro-section {
         order: 9;
     }
 
