@@ -90,7 +90,7 @@ body {
 }
 
 .ticker-track:hover {
-    animation-play-state: paused !important;
+    animation-play-state: paused;
 }
 
 .ticker-item {
@@ -192,6 +192,19 @@ body {
     align-items: center;
     gap: 1.25rem;
     z-index: 50;
+}
+
+.typhoon-clickable {
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.typhoon-clickable:hover {
+    background: rgba(255, 255, 255, 0.35);
+}
+
+.typhoon-clickable:active {
+    transform: scale(0.98);
 }
 
 .typhoon-alert.hidden {
@@ -2408,7 +2421,7 @@ body {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
     gap: 1rem;
-    padding: 1rem;
+    padding: 1rem 1.25rem;
     max-height: 450px;
     overflow-y: auto;
 }
@@ -2464,6 +2477,11 @@ body {
     color: white !important;
     /* 強制白色文字 */
     border-color: #ff3b30 !important;
+    transition: all 0.2s ease;
+}
+
+.ticker-warning:hover {
+    background: #ff4d44 !important;
 }
 
 .ticker-warning svg {

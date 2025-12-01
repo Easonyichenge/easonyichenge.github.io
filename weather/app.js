@@ -293,6 +293,10 @@ const DOM = {
     get imageModalClose() { return document.getElementById('imageModalClose'); },
     get modalImage() { return document.getElementById('modalImage'); },
 
+    get satelliteModal() { return document.getElementById('satelliteModal'); },
+    get satelliteModalClose() { return document.getElementById('satelliteModalClose'); },
+    get satelliteImage() { return document.getElementById('satelliteImage'); },
+
     get toast() { return document.getElementById('toast'); },
     get loadingOverlay() { return document.getElementById('loadingOverlay'); },
 
@@ -428,6 +432,12 @@ function bindEvents() {
     DOM.imageModalClose?.addEventListener('click', closeImageModal);
     DOM.imageModal?.addEventListener('click', e => {
         if (e.target === DOM.imageModal) closeImageModal();
+    });
+
+    // 衛星雲圖 Modal 事件
+    DOM.satelliteModalClose?.addEventListener('click', closeSatelliteModal);
+    DOM.satelliteModal?.addEventListener('click', e => {
+        if (e.target === DOM.satelliteModal) closeSatelliteModal();
     });
 
     DOM.tabs.forEach(tab => {
@@ -2005,7 +2015,7 @@ async function loadTyphoon() {
         if (DOM.typhoonTitle) DOM.typhoonTitle.textContent = `颱風警報`;
         if (DOM.typhoonDesc) {
             DOM.typhoonDesc.innerHTML = `
-                <div class="typhoon-stat">
+                <div class="typhoon-stat typhoon-clickable" onclick="openSatelliteModal();">
                     <span class="typhoon-stat-name">${tc.nameShort}</span>
                     <span class="typhoon-stat-info">風速 ${tc.maxWind}m/s</span>
                     <span class="typhoon-stat-info">陣風 ${tc.maxGust}m/s</span>
@@ -2019,7 +2029,7 @@ async function loadTyphoon() {
         if (DOM.typhoonTitle) DOM.typhoonTitle.textContent = `颱風警報`;
         if (DOM.typhoonDesc) {
             DOM.typhoonDesc.innerHTML = validTyphoons.map(tc => `
-                <div class="typhoon-stat">
+                <div class="typhoon-stat typhoon-clickable" onclick="openSatelliteModal();">
                     <span class="typhoon-stat-name">${tc.nameShort}</span>
                     <span class="typhoon-stat-info">風速 ${tc.maxWind}m/s</span>
                     <span class="typhoon-stat-info">陣風 ${tc.maxGust}m/s</span>
@@ -2320,39 +2330,32 @@ function closeImageModal() {
     DOM.imageModal?.classList.remove('active');
 }
 
+// 開啟衛星雲圖 Modal
+function openSatelliteModal() {
+    // 重新載入圖片以獲取最新衛星雲圖（加上時間戳避免快取）
+    if (DOM.satelliteImage) {
+        const timestamp = new Date().getTime();
+        DOM.satelliteImage.src = `https://www.cwa.gov.tw/Data/satellite/LCC_IR1_CR_2750/LCC_IR1_CR_2750.jpg?t=${timestamp}`;
+    }
+    DOM.satelliteModal?.classList.add('active');
+}
+
+// 關閉衛星雲圖 Modal
+function closeSatelliteModal() {
+    DOM.satelliteModal?.classList.remove('active');
+}
+
 // 全域函數
 window.selectCity = selectCity;
 window.showEqImage = showEqImage;
+window.openSatelliteModal = openSatelliteModal;
 
 
-// 顯示地震報告圖片
+// 顯示地震報告圖片（使用統一的 lightbox 樣式）
 function showEarthquakeImage(url) {
     if (!url) return;
-
-    // 移除現有的 modal (如果有)
-    const existingModal = document.querySelector('.image-modal');
-    if (existingModal) existingModal.remove();
-
-    const modal = document.createElement('div');
-    modal.className = 'image-modal';
-    modal.innerHTML = `
-        <div class="image-modal-content">
-            <button class="close-modal" onclick="this.closest('.image-modal').remove()">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <line x1="18" y1="6" x2="6" y2="18"></line>
-                    <line x1="6" y1="6" x2="18" y2="18"></line>
-                </svg>
-            </button>
-            <img src="${url}" alt="地震報告">
-        </div>
-    `;
-
-    // 點擊背景關閉
-    modal.addEventListener('click', (e) => {
-        if (e.target === modal) modal.remove();
-    });
-
-    document.body.appendChild(modal);
+    if (DOM.modalImage) DOM.modalImage.src = url;
+    DOM.imageModal?.classList.add('active');
 }
 
 // 將函數導出到 window，讓 HTML onclick 可以使用
