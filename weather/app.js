@@ -330,6 +330,9 @@ function init() {
 
     if (getApiKey()) {
         loadAllData();
+
+        // 每次打開應用都自動定位
+        autoLocate();
     }
 }
 
