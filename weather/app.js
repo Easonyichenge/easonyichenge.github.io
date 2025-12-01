@@ -575,7 +575,7 @@ async function loadTicker() {
 
     let items = [];
 
-    // 1. 先加入最新的地震 (僅顯示近 12 小時內)
+    // 1. 先加入最新的地震 (僅顯示近 6 小時內)
     if (allQuakes.length > 0) {
         // 只取最新的地震
         const eq = allQuakes[0];
@@ -586,8 +586,8 @@ async function loadTicker() {
         // 計算時間差 (毫秒)
         const diffHours = (now - time) / (1000 * 60 * 60);
 
-        // 只有 12 小時內的地震才顯示
-        if (diffHours <= 12) {
+        // 只有 6 小時內的地震才顯示
+        if (diffHours <= 6) {
             const magnitude = info.EarthquakeMagnitude.MagnitudeValue;
             const location = info.Epicenter.Location;
 

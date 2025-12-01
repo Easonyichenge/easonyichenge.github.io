@@ -842,6 +842,14 @@ body {
     gap: 0.75rem;
 }
 
+.obs-section .card-head {
+    align-items: center;
+}
+
+.obs-section .card-head h3 {
+    flex-shrink: 0;
+}
+
 .search-box {
     display: flex;
     align-items: center;
