@@ -335,14 +335,11 @@ function init() {
 
 // 初始化跑馬燈循環更新
 function initTickerLoop() {
-    const tickerTrack = DOM.tickerContent;
-    if (!tickerTrack) return;
-
-    // 監聽動畫循環結束事件
-    tickerTrack.addEventListener('animationiteration', () => {
-        // 動畫完成一個循環時，靜默更新跑馬燈資料
+    // 使用定時器定期更新跑馬燈數據（每5分鐘）
+    // 而不是在每次動畫循環時更新，避免閃爍
+    setInterval(() => {
         loadTicker();
-    });
+    }, 5 * 60 * 1000); // 5分鐘
 }
 
 function initCitySelect() {
@@ -698,8 +695,9 @@ async function loadTicker() {
         items.push(itemHtml);
     });
 
-    // 無縫循環跑馬燈：複製一份內容
-    const tickerHtml = items.join('') + items.join('');
+    // 無縫循環跑馬燈：複製一份內容，確保間距一致
+    const singleContent = items.join('');
+    const tickerHtml = singleContent + singleContent;
 
     if (DOM.tickerContent) {
         // 只有當內容改變時才更新，避免不必要的重繪導致動畫重置
@@ -761,7 +759,17 @@ window.selectCity = window.handleTickerClick;
 function updateTickerAnimation() {
     if (!DOM.tickerContent) return;
 
-    // 先移除動畫以獲取正確寬度
+    // 檢查是否已經在循環動畫中
+    const currentAnimation = DOM.tickerContent.style.animation;
+    const isLooping = currentAnimation && currentAnimation.includes('tickerSlide') && currentAnimation.includes('infinite');
+
+    // 如果已經在循環中，只需要等待下一次自然的循環更新內容
+    // 不要打斷正在進行的動畫，避免閃爍
+    if (isLooping) {
+        return;
+    }
+
+    // 首次載入或動畫未運行時，才重新初始化動畫
     DOM.tickerContent.style.animation = 'none';
 
     // 移除之前的事件監聽器 (如果有)
@@ -781,8 +789,7 @@ function updateTickerAnimation() {
         const speed = 50; // pixels per second
 
         // 1. 進場動畫時間 (從 100vw 到 0)
-        const enterDistance = viewportWidth; // 其實是從右邊界到左邊界? 不，是 translateX(100vw) 到 0。
-        // 嚴格來說，內容頭部從 100vw 移動到 0，距離是 100vw。
+        const enterDistance = viewportWidth;
         const enterDuration = enterDistance / speed;
 
         // 2. 循環動畫時間 (移動一份內容長度)
