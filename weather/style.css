@@ -521,7 +521,7 @@ body {
 
 .hero-temp {
     font-size: 6rem;
-    font-weight: 200;
+    font-weight: 700;
     line-height: 1;
     letter-spacing: -0.04em;
     text-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
@@ -1478,7 +1478,7 @@ body {
     align-items: center;
     gap: 0.25rem;
     font-size: 0.9375rem;
-    font-weight: 600;
+    font-weight: 700;
 }
 
 .city-row-temp.high {
@@ -2959,10 +2959,24 @@ body {
 
     .hero-temp {
         font-size: 3.5rem;
+        font-weight: 700;
+    }
+
+    .hero-location {
+        font-size: 1.125rem;
     }
 
     .hero-desc {
         font-size: 1rem;
+    }
+
+    .city-row-name {
+        font-size: 0.875rem;
+    }
+
+    .city-row-temp {
+        font-size: 1rem;
+        font-weight: 700;
     }
 
     .stat-value {

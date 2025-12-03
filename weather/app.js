@@ -557,6 +557,12 @@ function refreshData(silent = false) {
         loadTaiwanWeather()
     ]).finally(() => {
         updateLastTime();
+
+        // 如果有選定鄉鎮，重新渲染鄉鎮天氣
+        if (state.currentDistrict) {
+            renderTownshipWeather(state.currentDistrict);
+        }
+
         if (!silent) {
             showToast('資料已更新');
         }
@@ -921,7 +927,10 @@ async function loadForecast() {
 
     if (state.currentCity) {
         const loc = locations.find(l => l.locationName === state.currentCity) || locations[0];
-        renderHeroWeather(loc);
+        // 只有在沒有選擇鄉鎮時才渲染縣市天氣，避免重新整理時閃爍
+        if (!state.currentDistrict) {
+            renderHeroWeather(loc);
+        }
     } else {
         DOM.heroWeather.innerHTML = `
             <div class="hero-empty">
@@ -931,7 +940,10 @@ async function loadForecast() {
         `;
     }
 
-    renderForecastCards(locations);
+    // 只有在沒有選擇鄉鎮時才渲染縣市預報卡片，避免重新整理時閃爍
+    if (!state.currentDistrict) {
+        renderForecastCards(locations);
+    }
 }
 
 async function loadTownshipForecast() {
@@ -962,6 +974,11 @@ async function loadTownshipForecast() {
             DOM.districtSelect.appendChild(option);
         });
         DOM.districtSelect.disabled = false;
+
+        // Restore selection if exists
+        if (state.currentDistrict) {
+            DOM.districtSelect.value = state.currentDistrict;
+        }
     }
 
     // if (DOM.districtSelectBox) DOM.districtSelectBox.classList.remove('hidden');
