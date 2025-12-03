@@ -56,6 +56,31 @@ const CITIES = [
     '臺東縣', '澎湖縣', '金門縣', '連江縣'
 ];
 
+const PRIORITY_STATIONS = {
+    '臺北市': ['臺北', '信義'],
+    '新北市': ['板橋', '淡水', '永和'],
+    '桃園市': ['桃園', '新屋'],
+    '臺中市': ['臺中', '豐原'],
+    '臺南市': ['臺南', '永康'],
+    '高雄市': ['三民', '高雄', '鳳山'],
+    '基隆市': ['基隆'],
+    '新竹市': ['新竹'],
+    '嘉義市': ['嘉義'],
+    '新竹縣': ['竹北'],
+    '苗栗縣': ['苗栗'],
+    '彰化縣': ['彰化', '員林'],
+    '南投縣': ['南投', '日月潭'],
+    '雲林縣': ['斗六'],
+    '嘉義縣': ['朴子', '阿里山'],
+    '屏東縣': ['屏東', '恆春'],
+    '宜蘭縣': ['宜蘭', '蘇澳'],
+    '花蓮縣': ['花蓮', '吉安'],
+    '臺東縣': ['臺東', '成功', '蘭嶼'],
+    '澎湖縣': ['澎湖', '東吉島'],
+    '金門縣': ['金門'],
+    '連江縣': ['馬祖']
+};
+
 // 城市由北到南排序（依緯度）
 const CITIES_NORTH_TO_SOUTH = [
     '基隆市',    // 25.13
@@ -1143,6 +1168,12 @@ function renderHeroWeather(location) {
     const isDaytime = hour >= 6 && hour < 18;
     const rainProb = parseInt(pop?.time?.[0]?.parameter?.parameterName || '0');
 
+    // 決定顯示的溫度：如果有即時觀測資料則使用，否則先顯示預報高溫
+    let currentTemp = tempMax;
+    if (location.isTownship && location.stationStats && location.stationStats.temp !== '--') {
+        currentTemp = location.stationStats.temp;
+    }
+
     let weatherIcon = getWeatherIcon(desc);
     // 晚上將太陽圖示改為月亮
     if (!isDaytime && weatherIcon === ICONS.sun) {
@@ -1170,7 +1201,7 @@ function renderHeroWeather(location) {
                     </div>
                 </div>
                 <div class="hero-main">
-                    <span class="hero-temp">${tempMax}</span>
+                    <span class="hero-temp">${currentTemp}</span>
                     <span class="hero-unit">°C</span>
                 </div>
                 <div class="hero-range">最低 ${tempMin}° / 最高 ${tempMax}°</div>
@@ -1284,7 +1315,22 @@ async function getStationStats(cityName, townshipName = null) {
 
     if (!stations.length) return null;
 
-    const station = stations[0];
+    let station = stations[0];
+
+    // 如果沒有指定鄉鎮（即選擇全縣市），則嘗試尋找優先測站
+    if (!townshipName && PRIORITY_STATIONS[cityName]) {
+        const priorityList = PRIORITY_STATIONS[cityName];
+        // 嘗試找到優先列表中的測站
+        const priorityStation = stations.find(s => {
+            const name = s.StationName;
+            return priorityList.some(p => name.includes(p));
+        });
+
+        if (priorityStation) {
+            station = priorityStation;
+        }
+    }
+
     const obs = station.WeatherElement || {};
 
     const humidity = obs.RelativeHumidity ?? '--';
@@ -1336,6 +1382,12 @@ function updateQuickStatsDOM(stats) {
         }
     }
     if (DOM.statFeels) DOM.statFeels.textContent = stats.temp + '°';
+
+    // 同步更新 Hero 區塊的大溫度（如果是即時資料）
+    const heroTemp = document.querySelector('.hero-temp');
+    if (heroTemp && stats.temp !== '--') {
+        heroTemp.textContent = stats.temp;
+    }
 }
 
 function renderForecastCards(locations, isTownship = false) {
@@ -2190,16 +2242,16 @@ async function loadEarthquake() {
 // ========================================
 async function loadWarnings() {
     const data = await apiRequest(CONFIG.ENDPOINTS.WARNING);
-    console.log('警特報 API 回應:', data);
+
 
     // W-C0033-002 回傳的是 records.record 結構
     if (!data?.records?.record?.length) {
-        console.log('目前沒有警特報資料');
+
         DOM.warningSection?.classList.add('hidden');
         return;
     }
 
-    console.log('發現警特報:', data.records.record.length, '筆');
+
 
     DOM.warningSection?.classList.remove('hidden');
     if (!DOM.warningList) return;
@@ -2429,19 +2481,58 @@ async function loadAstronomy() {
 // 台灣天氣地圖
 // ========================================
 async function loadTaiwanWeather() {
-    const data = await apiRequest(CONFIG.ENDPOINTS.FORECAST);
-    if (!data?.records?.location) return;
+    // 同時載入預報和觀測資料
+    const [forecastData, stationData] = await Promise.all([
+        apiRequest(CONFIG.ENDPOINTS.FORECAST),
+        apiRequest(CONFIG.ENDPOINTS.WEATHER_STATION)
+    ]);
 
-    const locations = data.records.location;
+    if (!forecastData?.records?.location) return;
+
+    const locations = forecastData.records.location;
+    const stations = stationData?.records?.Station || [];
+
+    // 建立城市即時溫度對照表
+    const cityTemps = {};
+    locations.forEach(loc => {
+        const cityName = loc.locationName;
+        // 使用優先測站邏輯尋找溫度
+        let temp = '-';
+
+        // 找出該縣市的所有測站
+        const cityStations = stations.filter(s => {
+            const county = s.GeoInfo?.CountyName || '';
+            return county.includes(cityName) || cityName.includes(county);
+        });
+
+        if (cityStations.length > 0) {
+            let selectedStation = cityStations[0];
+
+            // 嘗試使用優先測站
+            if (PRIORITY_STATIONS[cityName]) {
+                const priorityList = PRIORITY_STATIONS[cityName];
+                const priorityStation = cityStations.find(s => {
+                    const name = s.StationName;
+                    return priorityList.some(p => name.includes(p));
+                });
+                if (priorityStation) selectedStation = priorityStation;
+            }
+
+            const obs = selectedStation.WeatherElement || {};
+            if (obs.AirTemperature) temp = obs.AirTemperature;
+        }
+
+        cityTemps[cityName] = temp;
+    });
 
     // 更新地圖標記
-    updateMapMarkers(locations);
+    updateMapMarkers(locations, cityTemps);
 
     // 更新城市列表
-    renderCityList(locations);
+    renderCityList(locations, cityTemps);
 }
 
-function updateMapMarkers(locations) {
+function updateMapMarkers(locations, cityTemps = {}) {
     if (!state.map) return;
 
     // 清除舊標記
@@ -2464,11 +2555,27 @@ function updateMapMarkers(locations) {
         const desc = wx?.time?.[0]?.parameter?.parameterName || '';
         const rainProb = pop?.time?.[0]?.parameter?.parameterName || '0';
 
+        // 使用即時溫度，如果沒有則顯示預報高溫
+        const currentTemp = cityTemps[loc.locationName] !== '-' ? cityTemps[loc.locationName] : tempMax;
+
+        // 判斷當前是白天還是晚上
+        const now = new Date();
+        const hour = now.getHours();
+        const isDaytime = hour >= 6 && hour < 18;
+
+        let weatherIcon = getWeatherIcon(desc);
+        // 晚上將太陽圖示改為月亮
+        if (!isDaytime && weatherIcon === ICONS.sun) {
+            weatherIcon = ICONS.moon;
+        } else if (!isDaytime && weatherIcon === ICONS.cloudSun) {
+            weatherIcon = ICONS.cloud;
+        }
+
         // 自定義圖標
         const iconHtml = `
             <div class="weather-marker">
-                <div class="weather-marker-icon">${getWeatherIcon(desc)}</div>
-                <div class="weather-marker-temp">${tempMax}°</div>
+                <div class="weather-marker-icon">${weatherIcon}</div>
+                <div class="weather-marker-temp">${currentTemp}°</div>
             </div>
         `;
 
@@ -2503,7 +2610,7 @@ function updateMapMarkers(locations) {
     }
 }
 
-function renderCityList(locations) {
+function renderCityList(locations, cityTemps = {}) {
     if (!DOM.taiwanWeatherList) return;
 
     // 將 locations 依照北到南的順序排序
