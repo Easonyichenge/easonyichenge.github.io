@@ -84,30 +84,7 @@ const CITIES_NORTH_TO_SOUTH = [
 ];
 
 // 城市座標 (經緯度)
-const CITY_COORDS = {
-    '臺北市': [25.0330, 121.5654],
-    '新北市': [25.0170, 121.4628],
-    '基隆市': [25.1276, 121.7392],
-    '桃園市': [24.9936, 121.3010],
-    '新竹市': [24.8138, 120.9675],
-    '新竹縣': [24.8390, 121.0179],
-    '苗栗縣': [24.5602, 120.8214],
-    '臺中市': [24.1477, 120.6736],
-    '彰化縣': [24.0518, 120.5161],
-    '南投縣': [23.9610, 120.9718],
-    '雲林縣': [23.7092, 120.4313],
-    '嘉義市': [23.4801, 120.4491],
-    '嘉義縣': [23.4518, 120.2555],
-    '臺南市': [22.9998, 120.2269],
-    '高雄市': [22.6273, 120.3014],
-    '屏東縣': [22.5519, 120.5487],
-    '宜蘭縣': [24.7021, 121.7378],
-    '花蓮縣': [23.9871, 121.6016],
-    '臺東縣': [22.7583, 121.1444],
-    '澎湖縣': [23.5711, 119.5793],
-    '金門縣': [24.4493, 118.3767],
-    '連江縣': [26.1605, 119.9500]
-};
+// CITY_COORDS moved to townships.js
 
 // UV 測站名稱對照表
 const UV_STATION_NAMES = {
@@ -529,6 +506,7 @@ function loadAllData() {
     Promise.all([
         loadTicker(),
         loadForecast(),
+        loadTownshipForecast(), // Ensure township data is loaded
         loadWeekForecast(),
         loadObservation(),
         loadEarthquake(),
@@ -564,7 +542,7 @@ function refreshData() {
 function loadCityData() {
     setLoading(true);
 
-    Promise.all([
+    return Promise.all([
         loadForecast(),
         loadTownshipForecast(),
         loadWeekForecast(),
@@ -2586,7 +2564,7 @@ function renderCityList(locations) {
 // ========================================
 // 選擇城市
 // ========================================
-function selectCity(cityName) {
+async function selectCity(cityName) {
     state.currentCity = cityName;
     state.currentDistrict = '';
 
@@ -2596,11 +2574,8 @@ function selectCity(cityName) {
 
     localStorage.setItem('selected_city', cityName);
 
-    loadForecast();
-    loadWeekForecast();
-    loadObservation();
-    loadAstronomy();
-    loadTaiwanWeather();
+    // 使用 loadCityData 統一管理載入狀態
+    await loadCityData();
 
     window.scrollTo({ top: 0, behavior: 'smooth' });
     showToast(`已切換至 ${cityName}`);
@@ -2618,10 +2593,36 @@ function autoLocate() {
     showToast('定位中...');
 
     navigator.geolocation.getCurrentPosition(
-        pos => {
-            const city = findNearestCity(pos.coords.latitude, pos.coords.longitude);
-            if (city) {
-                selectCity(city);
+        async pos => {
+            const { latitude, longitude } = pos.coords;
+            const result = findNearestLocation(latitude, longitude);
+
+            if (result.city) {
+                // 如果城市不同，先切換城市
+                if (state.currentCity !== result.city) {
+                    await selectCity(result.city);
+                } else {
+                    // 如果城市相同，但沒有鄉鎮資料，嘗試載入
+                    if (!state.districtData || state.districtData.length === 0) {
+                        await loadTownshipForecast();
+                    }
+                }
+
+                // 如果有定位到鄉鎮，且該鄉鎮在目前的選單中
+                if (result.township && DOM.districtSelect) {
+                    // 檢查該鄉鎮是否存在於選單中
+                    const option = Array.from(DOM.districtSelect.options).find(opt => opt.value === result.township);
+                    if (option) {
+                        DOM.districtSelect.value = result.township;
+                        // 觸發 change 事件以更新天氣
+                        DOM.districtSelect.dispatchEvent(new Event('change'));
+                        showToast(`已定位至 ${result.city}${result.township}`);
+                    } else {
+                        showToast(`已定位至 ${result.city}`);
+                    }
+                } else {
+                    showToast(`已定位至 ${result.city}`);
+                }
             }
         },
         () => {
@@ -2630,17 +2631,28 @@ function autoLocate() {
     );
 }
 
-function findNearestCity(lat, lng) {
-    let nearest = '臺北市';
-    let minDist = Infinity;
+function findNearestLocation(lat, lng) {
+    let nearest = { city: '臺北市', dist: Infinity };
 
+    // 1. 檢查縣市中心
     Object.entries(CITY_COORDS).forEach(([city, [cLat, cLng]]) => {
         const dist = Math.sqrt(Math.pow(lat - cLat, 2) + Math.pow(lng - cLng, 2));
-        if (dist < minDist) {
-            minDist = dist;
-            nearest = city;
+        if (dist < nearest.dist) {
+            nearest = { city, dist };
         }
     });
+
+    // 2. 檢查鄉鎮市區
+    if (typeof TOWNSHIP_COORDS !== 'undefined') {
+        Object.entries(TOWNSHIP_COORDS).forEach(([city, townships]) => {
+            Object.entries(townships).forEach(([town, [tLat, tLng]]) => {
+                const dist = Math.sqrt(Math.pow(lat - tLat, 2) + Math.pow(lng - tLng, 2));
+                if (dist < nearest.dist) {
+                    nearest = { city, township: town, dist };
+                }
+            });
+        });
+    }
 
     return nearest;
 }
