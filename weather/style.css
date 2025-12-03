@@ -667,14 +667,17 @@ body {
 
 /* ===== Forecast Grid ===== */
 .forecast-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    display: flex;
+    overflow-x: auto;
     gap: 1rem;
+    padding-bottom: 1.5rem;
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
 }
 
 .forecast-grid .city-card {
-    flex: none;
-    width: 100%;
+    flex: 0 0 140px;
+    width: auto;
 }
 
 .forecast-section-title,
@@ -2555,13 +2558,20 @@ body {
 
 /* ===== 各縣市天氣卡片網格 ===== */
 .weather-cards-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    display: flex;
+    overflow-x: auto;
     gap: 0.75rem;
     padding: 0.5rem;
+    padding-bottom: 1.5rem;
+    /* Space for scrollbar */
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+    /* Smooth scrolling on iOS */
 }
 
 .weather-card {
+    flex: 0 0 140px;
+    /* Fixed width, no shrink */
     background: var(--card-solid);
     border-radius: var(--radius);
     padding: 1rem;
@@ -2818,9 +2828,9 @@ body {
 
 /* ===== 響應式調整 ===== */
 @media (max-width: 768px) {
-    .weather-cards-grid {
+    /* .weather-cards-grid {
         grid-template-columns: repeat(3, 1fr);
-    }
+    } */
 
     .obs-cards-grid {
         grid-template-columns: repeat(2, 1fr);
@@ -2887,9 +2897,9 @@ body {
         display: none;
     }
 
-    .weather-cards-grid {
+    /* .weather-cards-grid {
         grid-template-columns: repeat(2, 1fr);
-    }
+    } */
 
     .obs-cards-grid {
         grid-template-columns: 1fr 1fr;
@@ -2987,14 +2997,17 @@ body {
 
 /* ===== 一週天氣預報 ===== */
 .week-forecast-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    display: flex;
+    overflow-x: auto;
     gap: 1rem;
+    padding-bottom: 1.5rem;
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
 }
 
 .week-forecast-grid .city-card {
-    flex: none;
-    width: 100%;
+    flex: 0 0 140px;
+    width: auto;
 }
 
 .week-forecast-grid .empty {
