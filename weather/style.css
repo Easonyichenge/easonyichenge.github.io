@@ -671,6 +671,8 @@ body {
     overflow-x: auto;
     gap: 1rem;
     padding-bottom: 1.5rem;
+    padding-top: 0.5rem;
+    /* Add padding for hover effect */
     scroll-behavior: smooth;
     -webkit-overflow-scrolling: touch;
 }
@@ -3015,6 +3017,8 @@ body {
     overflow-x: auto;
     gap: 1rem;
     padding-bottom: 1.5rem;
+    padding-top: 0.5rem;
+    /* Add padding for hover effect */
     scroll-behavior: smooth;
     -webkit-overflow-scrolling: touch;
 }
