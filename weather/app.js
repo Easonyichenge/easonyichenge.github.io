@@ -259,6 +259,8 @@ const ICONS = {
 const DOM = {
     get tickerContent() { return document.getElementById('tickerContent'); },
     get citySelect() { return document.getElementById('citySelect'); },
+    get districtSelect() { return document.getElementById('districtSelect'); },
+    get districtSelectBox() { return document.getElementById('districtSelectBox'); },
     get autoLocateBtn() { return document.getElementById('autoLocateBtn'); },
     get refreshBtn() { return document.getElementById('refreshBtn'); },
     get updateTime() { return document.getElementById('updateTime'); },
@@ -415,6 +417,20 @@ function bindEvents() {
         loadCityData(); // 使用 loadCityData 而非 loadAllData，避免跑馬燈重跑
     });
 
+    DOM.districtSelect?.addEventListener('change', e => {
+        state.currentDistrict = e.target.value;
+        if (state.currentDistrict) {
+            renderTownshipWeather(state.currentDistrict);
+        } else {
+            // 如果選回"選擇鄉鎮"，顯示全縣市資訊
+            if (state.weatherData && state.currentCity) {
+                const locations = state.weatherData.records.location;
+                const loc = locations.find(l => l.locationName === state.currentCity);
+                if (loc) renderHeroWeather(loc);
+            }
+        }
+    });
+
     DOM.autoLocateBtn?.addEventListener('click', autoLocate);
 
     DOM.modalClose?.addEventListener('click', () => closeModal());
@@ -550,6 +566,7 @@ function loadCityData() {
 
     Promise.all([
         loadForecast(),
+        loadTownshipForecast(),
         loadWeekForecast(),
         loadObservation(),
         loadAstronomy(),
@@ -733,6 +750,7 @@ async function getWeatherData(city) {
     try {
         await Promise.all([
             loadForecast(),
+            loadTownshipForecast(),
             loadWeekForecast(),
             loadObservation(),
             loadAstronomy(),
@@ -913,6 +931,221 @@ async function loadForecast() {
     renderForecastCards(locations);
 }
 
+async function loadTownshipForecast() {
+    if (!state.currentCity) {
+        // if (DOM.districtSelectBox) DOM.districtSelectBox.classList.add('hidden');
+        if (DOM.districtSelect) {
+            DOM.districtSelect.innerHTML = '<option value="">選擇鄉鎮</option>';
+            DOM.districtSelect.disabled = true;
+        }
+        return;
+    }
+
+    const endpoint = CITY_FORECAST_ENDPOINTS[state.currentCity];
+    if (!endpoint) return;
+
+    const data = await apiRequest(endpoint);
+    if (!data?.records?.Locations?.[0]?.Location) return;
+
+    state.districtData = data.records.Locations[0].Location;
+
+    // Populate district select
+    if (DOM.districtSelect) {
+        DOM.districtSelect.innerHTML = '<option value="">選擇鄉鎮</option>';
+        state.districtData.forEach(loc => {
+            const option = document.createElement('option');
+            option.value = loc.LocationName;
+            option.textContent = loc.LocationName;
+            DOM.districtSelect.appendChild(option);
+        });
+        DOM.districtSelect.disabled = false;
+    }
+
+    // if (DOM.districtSelectBox) DOM.districtSelectBox.classList.remove('hidden');
+}
+
+async function renderTownshipWeather(districtName) {
+    if (!state.districtData) return;
+
+    setLoading(true);
+
+    try {
+        const loc = state.districtData.find(l => l.LocationName === districtName);
+        if (!loc) return;
+
+        // Pre-fetch real-time stats (including gust) from weather station
+        const stationStats = await getStationStats(state.currentCity, loc.LocationName);
+
+        // Race condition check: ensure we are still on the same district
+        if (state.currentDistrict !== districtName) return;
+
+        // Normalize data to match renderHeroWeather format
+        // For forecast cards, we need to construct a time-series array
+        // Township data has 3-hour intervals for Wx, and point data for T
+
+        const wxElement = loc.WeatherElement.find(e => e.ElementName === '天氣現象');
+        const tElement = loc.WeatherElement.find(e => e.ElementName === '溫度');
+        const popElement = loc.WeatherElement.find(e => e.ElementName === '3小時降雨機率');
+        const minTElement = loc.WeatherElement.find(e => e.ElementName === '最低溫度'); // Some datasets have this
+        const maxTElement = loc.WeatherElement.find(e => e.ElementName === '最高溫度'); // Some datasets have this
+
+        // Construct 72-hour forecast data
+        const forecastTimes = [];
+        if (wxElement && wxElement.Time) {
+            const now = new Date();
+            const endTimeLimit = new Date(now.getTime() + 72 * 60 * 60 * 1000);
+
+            wxElement.Time.forEach((t, index) => {
+                const startTime = new Date(t.StartTime);
+                if (startTime > endTimeLimit) return;
+
+                const endTime = new Date(t.EndTime);
+                const wx = t.ElementValue[0].Weather;
+
+                // Find matching temperature (closest point data)
+                // T element usually has DataTime. We find the one that falls within or is closest to this interval
+                let temp = '-';
+                if (tElement && tElement.Time) {
+                    const match = tElement.Time.find(tt => {
+                        const dt = new Date(tt.DataTime);
+                        return dt >= startTime && dt < endTime;
+                    });
+                    if (match) temp = match.ElementValue[0].Temperature;
+                }
+
+                // Pop
+                let pop = '0';
+                if (popElement && popElement.Time) {
+                    const match = popElement.Time[index]; // Usually aligned
+                    if (match) pop = match.ElementValue[0].ProbabilityOfPrecipitation;
+                }
+
+                forecastTimes.push({
+                    startTime: t.StartTime,
+                    endTime: t.EndTime,
+                    parameter: { parameterName: wx },
+                    temperature: temp,
+                    pop: pop
+                });
+            });
+        }
+
+        const normalizedLoc = {
+            locationName: `${state.currentCity} · ${loc.LocationName}`,
+            township: loc.LocationName, // Pass raw township name for fetchQuickStats
+            isTownship: true, // Flag to indicate township data
+            stationStats: stationStats, // Pass pre-fetched stats
+            forecastTimes: forecastTimes, // Custom field for 72h forecast
+            weatherElement: [
+                {
+                    elementName: 'Wx',
+                    time: [{
+                        parameter: {
+                            parameterName: getElementValue(loc, '天氣現象')
+                        }
+                    }]
+                },
+                {
+                    elementName: 'T', // Current Temp
+                    time: [{
+                        parameter: {
+                            parameterName: getElementValue(loc, '溫度')
+                        }
+                    }]
+                },
+                {
+                    elementName: 'MinT',
+                    time: [{
+                        parameter: {
+                            parameterName: getElementValue(loc, '溫度')
+                        }
+                    }]
+                },
+                {
+                    elementName: 'MaxT',
+                    time: [{
+                        parameter: {
+                            parameterName: getElementValue(loc, '溫度')
+                        }
+                    }]
+                },
+                {
+                    elementName: 'PoP',
+                    time: [{
+                        parameter: {
+                            parameterName: getElementValue(loc, '3小時降雨機率')
+                        }
+                    }]
+                },
+                {
+                    elementName: 'CI',
+                    time: [{
+                        parameter: {
+                            parameterName: getElementValue(loc, '舒適度指數')
+                        }
+                    }]
+                },
+                {
+                    elementName: 'RH',
+                    time: [{
+                        parameter: {
+                            parameterName: getElementValue(loc, '相對濕度')
+                        }
+                    }]
+                },
+                {
+                    elementName: 'WS',
+                    time: [{
+                        parameter: {
+                            parameterName: getElementValue(loc, '風速')
+                        }
+                    }]
+                },
+                {
+                    elementName: 'WD',
+                    time: [{
+                        parameter: {
+                            parameterName: getElementValue(loc, '風向')
+                        }
+                    }]
+                },
+                {
+                    elementName: 'AT',
+                    time: [{
+                        parameter: {
+                            parameterName: getElementValue(loc, '體感溫度')
+                        }
+                    }]
+                }
+            ]
+        };
+
+        renderHeroWeather(normalizedLoc);
+        // Render 72h forecast cards
+        renderForecastCards([normalizedLoc], true);
+    } finally {
+        setLoading(false);
+    }
+}
+
+function getElementValue(loc, elementName) {
+    const el = loc.WeatherElement.find(e => e.ElementName === elementName);
+    // For WindSpeed, we prefer BeaufortScale if available
+    if (elementName === '風速') {
+        return el?.Time?.[0]?.ElementValue?.[0]?.BeaufortScale ||
+            el?.Time?.[0]?.ElementValue?.[0]?.WindSpeed || '-';
+    }
+
+    return el?.Time?.[0]?.ElementValue?.[0]?.Weather ||
+        el?.Time?.[0]?.ElementValue?.[0]?.Temperature ||
+        el?.Time?.[0]?.ElementValue?.[0]?.ProbabilityOfPrecipitation ||
+        el?.Time?.[0]?.ElementValue?.[0]?.ComfortIndexDescription || // For Comfort Index
+        el?.Time?.[0]?.ElementValue?.[0]?.RelativeHumidity ||
+        el?.Time?.[0]?.ElementValue?.[0]?.WindSpeed ||
+        el?.Time?.[0]?.ElementValue?.[0]?.WindDirection ||
+        el?.Time?.[0]?.ElementValue?.[0]?.ApparentTemperature || '-';
+}
+
 function renderHeroWeather(location) {
     const els = location.weatherElement || [];
     const wx = els.find(e => e.elementName === 'Wx');
@@ -976,7 +1209,35 @@ function renderHeroWeather(location) {
     // 更新降雨機率
     if (DOM.statRain) DOM.statRain.textContent = `${rainProb}%`;
 
-    fetchQuickStats(location.locationName);
+    if (location.isTownship) {
+        // Township mode: use extracted stats
+        const rh = els.find(e => e.elementName === 'RH')?.time?.[0]?.parameter?.parameterName || '--';
+        const ws = els.find(e => e.elementName === 'WS')?.time?.[0]?.parameter?.parameterName || '-';
+        const wd = els.find(e => e.elementName === 'WD')?.time?.[0]?.parameter?.parameterName || '';
+        const at = els.find(e => e.elementName === 'AT')?.time?.[0]?.parameter?.parameterName || '-';
+
+        if (DOM.statHumidity) DOM.statHumidity.textContent = `${rh}%`;
+
+        if (DOM.statWind) {
+            // Township data now returns BeaufortScale (e.g., "3") or m/s if not available
+            DOM.statWind.textContent = `${ws} 級`;
+
+            // Update label if needed, or just leave as "風速"
+            var windLabel = DOM.statWind.parentElement.querySelector('.stat-name');
+            if (windLabel) windLabel.textContent = '風速';
+        }
+
+        if (DOM.statFeels) DOM.statFeels.textContent = `${at}°`;
+
+        // Use pre-fetched stats if available, otherwise try to fetch
+        if (location.stationStats) {
+            updateQuickStatsDOM(location.stationStats);
+        } else {
+            fetchQuickStats(state.currentCity, location.township);
+        }
+    } else {
+        fetchQuickStats(location.locationName);
+    }
 }
 
 // 天氣穿著建議
@@ -1028,16 +1289,22 @@ function getWeatherAdvice(desc, tempMin, tempMax, rainProb) {
     ).join('');
 }
 
-async function fetchQuickStats(cityName) {
+async function getStationStats(cityName, townshipName = null) {
     const data = await apiRequest(CONFIG.ENDPOINTS.WEATHER_STATION);
-    if (!data?.records?.Station) return;
+    if (!data?.records?.Station) return null;
 
     const stations = data.records.Station.filter(s => {
         const county = s.GeoInfo?.CountyName || '';
-        return county.includes(cityName) || cityName.includes(county);
+        const town = s.GeoInfo?.TownName || '';
+        const cityMatch = county.includes(cityName) || cityName.includes(county);
+
+        if (townshipName) {
+            return cityMatch && town === townshipName;
+        }
+        return cityMatch;
     });
 
-    if (!stations.length) return;
+    if (!stations.length) return null;
 
     const station = stations[0];
     const obs = station.WeatherElement || {};
@@ -1049,22 +1316,51 @@ async function fetchQuickStats(cityName) {
 
     const windScale = getWindScale(parseFloat(wind));
     const gustScale = gust ? getWindScale(parseFloat(gust)) : 0;
-    var hasGust = gust && gustScale > 0;
+    const hasGust = gust && gustScale > 0;
 
-    if (DOM.statHumidity) DOM.statHumidity.textContent = humidity + '%';
+    return {
+        humidity,
+        wind,
+        temp,
+        gust,
+        windScale,
+        gustScale,
+        hasGust
+    };
+}
+
+async function fetchQuickStats(cityName, townshipName = null) {
+    const stats = await getStationStats(cityName, townshipName);
+    if (!stats) return;
+
+    // Race condition check
+    if (townshipName) {
+        if (state.currentDistrict !== townshipName) return;
+    } else {
+        // If fetching for city, ensure we haven't selected a district
+        if (state.currentDistrict) return;
+        // And ensure we are still on the same city
+        if (state.currentCity !== cityName) return;
+    }
+
+    updateQuickStatsDOM(stats);
+}
+
+function updateQuickStatsDOM(stats) {
+    if (DOM.statHumidity) DOM.statHumidity.textContent = stats.humidity + '%';
     if (DOM.statWind) {
         // 陣風為 0 級或沒有陣風資料時，只顯示風速
-        DOM.statWind.textContent = hasGust ? (windScale + ' 級 · ' + gustScale + ' 級') : (windScale + ' 級');
+        DOM.statWind.textContent = stats.hasGust ? (stats.windScale + ' 級 · ' + stats.gustScale + ' 級') : (stats.windScale + ' 級');
         // 更新標籤
         var windLabel = DOM.statWind.parentElement.querySelector('.stat-name');
         if (windLabel) {
-            windLabel.textContent = hasGust ? '風速 · 陣風' : '風速';
+            windLabel.textContent = stats.hasGust ? '風速 · 陣風' : '風速';
         }
     }
-    if (DOM.statFeels) DOM.statFeels.textContent = temp + '°';
+    if (DOM.statFeels) DOM.statFeels.textContent = stats.temp + '°';
 }
 
-function renderForecastCards(locations) {
+function renderForecastCards(locations, isTownship = false) {
     if (!DOM.forecastScroll) return;
 
     // 更新標題（保留 SVG 圖示）
@@ -1125,14 +1421,77 @@ function renderForecastCards(locations) {
         DOM.forecastScroll.innerHTML = cardsHtml;
     } else {
         // 選擇城市後，先顯示36小時預報，然後載入一週預報
-        if (forecastTitle) forecastTitle.innerHTML = `${forecastIcon}36 小時天氣預報`;
-        const loc = locations.find(l => l.locationName === state.currentCity);
-        if (loc) {
-            render36HourForecast(loc);
+        // 如果是鄉鎮模式，顯示72小時預報
+        if (isTownship) {
+            if (forecastTitle) forecastTitle.innerHTML = `${forecastIcon}72 小時天氣預報`;
+            // renderForecastCards 被呼叫時傳入的是單一 location 的 array
+            render72HourForecast(locations[0]);
+        } else {
+            if (forecastTitle) forecastTitle.innerHTML = `${forecastIcon}36 小時天氣預報`;
+            const loc = locations.find(l => l.locationName === state.currentCity);
+            if (loc) {
+                render36HourForecast(loc);
+            }
         }
         // 同時載入一週預報
         loadWeekForecast();
     }
+}
+
+function render72HourForecast(loc) {
+    if (!DOM.forecastScroll || !loc.forecastTimes) return;
+
+    const weekdays = ['週日', '週一', '週二', '週三', '週四', '週五', '週六'];
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const forecastCards = loc.forecastTimes.map(time => {
+        const desc = time.parameter?.parameterName || '-';
+        const temp = time.temperature || '-';
+        const rainProb = time.pop || '0';
+
+        const startTime = new Date(time.startTime);
+
+        // 判斷時段
+        const hour = startTime.getHours();
+        const isDaytime = hour >= 6 && hour < 18;
+        const timeStr = `${String(hour).padStart(2, '0')}:00`;
+
+        const dateStr = `${startTime.getMonth() + 1}/${startTime.getDate()}`;
+
+        // 根據時間調整天氣圖示
+        let weatherIcon = getWeatherIcon(desc);
+        if (!isDaytime && weatherIcon === ICONS.sun) {
+            weatherIcon = ICONS.moon;
+        } else if (!isDaytime && weatherIcon === ICONS.cloudSun) {
+            weatherIcon = ICONS.cloud;
+        }
+
+        // 判斷是否為今天
+        const forecastDate = new Date(startTime);
+        forecastDate.setHours(0, 0, 0, 0);
+        const isToday = forecastDate.getTime() === today.getTime();
+        const dayLabel = isToday ? '今天' : weekdays[startTime.getDay()];
+
+        return `
+            <div class="city-card forecast-card">
+                <div class="city-card-weekday">${dayLabel}</div>
+                <div class="city-card-name">${dateStr} ${timeStr}</div>
+                <div class="city-card-icon">${weatherIcon}</div>
+                <div class="city-card-temp">
+                    <span class="current">${temp}°</span>
+                </div>
+                <div class="city-card-rain">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12">
+                        <path d="M12 2.69l5.66 5.66a8 8 0 11-11.31 0z"/>
+                    </svg>
+                    ${rainProb}%
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    DOM.forecastScroll.innerHTML = forecastCards;
 }
 
 function render36HourForecast(loc) {
@@ -1595,7 +1954,7 @@ function renderWeatherObs(stations) {
                     </div>
                     <div class="obs-header-info">
                         <div class="obs-name">${name}</div>
-                        <div class="obs-location">${county} ${town}</div>
+                        <div class="obs-location">${county} · ${town}</div>
                     </div>
                     ${weatherIcon ? `<div class="obs-weather-icon-right">${weatherIcon}</div>` : ''}
                 </div>
@@ -1644,7 +2003,7 @@ function renderRainObs(stations) {
                     </div>
                     <div>
                         <div class="obs-name">${name}</div>
-                        <div class="obs-location">${county} ${town}</div>
+                        <div class="obs-location">${county} · ${town}</div>
                     </div>
                 </div>
                 <div class="obs-values">

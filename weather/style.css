@@ -2883,6 +2883,10 @@ body {
 }
 
 @media (max-width: 480px) {
+    .app-title {
+        display: none;
+    }
+
     .weather-cards-grid {
         grid-template-columns: repeat(2, 1fr);
     }
@@ -3262,4 +3266,9 @@ body {
         transform: scale(1);
         opacity: 1;
     }
+}
+
+/* ===== Utility Classes ===== */
+.hidden {
+    display: none !important;
 }
