@@ -416,16 +416,25 @@ function bindEvents() {
         loadCityData(); // 使用 loadCityData 而非 loadAllData，避免跑馬燈重跑
     });
 
-    DOM.districtSelect?.addEventListener('change', e => {
+    DOM.districtSelect?.addEventListener('change', async e => {
         state.currentDistrict = e.target.value;
         if (state.currentDistrict) {
             renderTownshipWeather(state.currentDistrict);
         } else {
             // 如果選回"選擇鄉鎮"，顯示全縣市資訊
-            if (state.weatherData && state.currentCity) {
-                const locations = state.weatherData.records.location;
-                const loc = locations.find(l => l.locationName === state.currentCity);
-                if (loc) renderHeroWeather(loc);
+            setLoading(true); // Show loading while fetching city stats
+            try {
+                if (state.weatherData && state.currentCity) {
+                    const locations = state.weatherData.records.location;
+                    const loc = locations.find(l => l.locationName === state.currentCity);
+                    if (loc) {
+                        await renderHeroWeather(loc);
+                        // Restore City Forecast Cards (because Township view replaced them)
+                        renderForecastCards(locations);
+                    }
+                }
+            } finally {
+                setLoading(false);
             }
         }
     });
@@ -1151,7 +1160,7 @@ async function renderTownshipWeather(districtName) {
             ]
         };
 
-        renderHeroWeather(normalizedLoc);
+        await renderHeroWeather(normalizedLoc);
         // Render 72h forecast cards
         renderForecastCards([normalizedLoc], true);
     } finally {
@@ -1264,12 +1273,13 @@ function renderHeroWeather(location) {
         // Use pre-fetched stats if available, otherwise try to fetch
         if (location.stationStats) {
             updateQuickStatsDOM(location.stationStats);
+            return Promise.resolve();
         } else {
-            fetchQuickStats(state.currentCity, location.township);
+            return fetchQuickStats(state.currentCity, location.township);
         }
     } else {
         // City mode: Try to fetch station stats for the city (optional, but good for real-time)
-        fetchQuickStats(location.locationName);
+        return fetchQuickStats(location.locationName);
     }
 }
 
