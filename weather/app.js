@@ -734,9 +734,9 @@ async function loadTicker() {
         items.push(itemHtml);
     });
 
-    // 無縫循環跑馬燈：複製一份內容，確保間距一致
+    // 無縫循環跑馬燈：複製四份內容，確保寬螢幕也能無縫循環
     const singleContent = items.join('');
-    const tickerHtml = singleContent + singleContent;
+    const tickerHtml = singleContent.repeat(4);
 
     if (DOM.tickerContent) {
         // 只有當內容改變時才更新，避免不必要的重繪導致動畫重置
@@ -746,6 +746,8 @@ async function loadTicker() {
         }
     }
 }
+
+
 
 // 獲取並顯示特定縣市天氣
 async function getWeatherData(city) {
@@ -1244,21 +1246,21 @@ function renderHeroWeather(location) {
     // 更新降雨機率
     if (DOM.statRain) DOM.statRain.textContent = `${rainProb}%`;
 
-    // 只有在鄉鎮模式下才顯示這四個數值，縣市模式下清空
+    // 提取預報中的其他數值 (濕度、風速、體感)
+    const rh = els.find(e => e.elementName === 'RH')?.time?.[0]?.parameter?.parameterName || '--';
+    const ws = els.find(e => e.elementName === 'WS')?.time?.[0]?.parameter?.parameterName || '-';
+    const at = els.find(e => e.elementName === 'AT')?.time?.[0]?.parameter?.parameterName || '-';
+
+    // 先填入預報數值 (不論是縣市還是鄉鎮都顯示)
+    if (DOM.statHumidity) DOM.statHumidity.textContent = `${rh}%`;
+    if (DOM.statWind) {
+        DOM.statWind.textContent = `${ws} 級`;
+        var windLabel = DOM.statWind.parentElement.querySelector('.stat-name');
+        if (windLabel) windLabel.textContent = '風速';
+    }
+    if (DOM.statFeels) DOM.statFeels.textContent = `${at}°`;
+
     if (location.isTownship) {
-        // 提取預報中的其他數值 (濕度、風速、體感)
-        const rh = els.find(e => e.elementName === 'RH')?.time?.[0]?.parameter?.parameterName || '--';
-        const ws = els.find(e => e.elementName === 'WS')?.time?.[0]?.parameter?.parameterName || '-';
-        const at = els.find(e => e.elementName === 'AT')?.time?.[0]?.parameter?.parameterName || '-';
-
-        if (DOM.statHumidity) DOM.statHumidity.textContent = `${rh}%`;
-        if (DOM.statWind) {
-            DOM.statWind.textContent = `${ws} 級`;
-            var windLabel = DOM.statWind.parentElement.querySelector('.stat-name');
-            if (windLabel) windLabel.textContent = '風速';
-        }
-        if (DOM.statFeels) DOM.statFeels.textContent = `${at}°`;
-
         // Use pre-fetched stats if available, otherwise try to fetch
         if (location.stationStats) {
             updateQuickStatsDOM(location.stationStats);
@@ -1266,48 +1268,8 @@ function renderHeroWeather(location) {
             fetchQuickStats(state.currentCity, location.township);
         }
     } else {
-        // City mode: Clear stats
-        if (DOM.statHumidity) DOM.statHumidity.textContent = '--';
-        if (DOM.statWind) {
-            DOM.statWind.textContent = '--';
-            var windLabel = DOM.statWind.parentElement.querySelector('.stat-name');
-            if (windLabel) windLabel.textContent = '風速';
-        }
-        if (DOM.statFeels) DOM.statFeels.textContent = '--';
-        // Rain probability is already set above, but if we want to clear it too:
-        // if (DOM.statRain) DOM.statRain.textContent = '--'; 
-        // User said "4 data", usually rain is one of them. 
-        // But rain is set by `rainProb` variable derived from PoP.
-        // Let's check if PoP is available for City. Yes, it is.
-        // Usually Rain is useful for City too.
-        // But the user said "hero下方四個資料".
-        // Let's assume they mean the ones that were missing before (Humidity, Wind, Feels Like).
-        // Rain was usually showing.
-        // But if they want "no data", maybe they want Rain cleared too?
-        // "hero下方四個資料" -> The 4 items.
-        // I will clear Rain too if it's not a township?
-        // Wait, Rain comes from `pop` which is in the forecast for the city too.
-        // Let's stick to clearing the other 3 first, or ask?
-        // The user said "hero下方資料不要出現資料".
-        // I'll clear all 4 to be safe, or just the 3 that are station-dependent?
-        // The previous issue was about "missing stats".
-        // I'll clear the 3 (Humidity, Wind, Feels Like) and leave Rain if it's available from forecast?
-        // Actually, let's look at the UI. The 4 items are usually: Rain, Wind, Humidity, Feels Like.
-        // If I clear 3 and leave 1, it looks weird.
-        // But Rain is very standard for City forecast.
-        // I will clear the 3 that are often station-specific (Wind, Humidity, Feels Like).
-        // Rain is from `PoP` which is standard forecast.
-        // However, if I look at my previous edit, I moved `rh`, `ws`, `at` extraction.
-        // I will clear `rh`, `ws`, `at`.
-        // I will NOT clear Rain unless requested, because Rain is essential.
-        // Wait, `rainProb` is set earlier: `if (DOM.statRain) DOM.statRain.textContent = ${rainProb}%;`
-        // I should probably move that into the `if (location.isTownship)` block if I want to clear it too.
-        // But `rainProb` is calculated from `pop` which exists for City.
-        // I will assume the user meant the "extra" stats that I just enabled.
-        // So I will clear Humidity, Wind, Feels Like.
-
-        // Also remove fetchQuickStats for city
-        // fetchQuickStats(location.locationName); // Removed
+        // City mode: Try to fetch station stats for the city (optional, but good for real-time)
+        fetchQuickStats(location.locationName);
     }
 }
 
@@ -1404,6 +1366,12 @@ async function getStationStats(cityName, townshipName = null) {
     const gustScale = gust ? getWindScale(parseFloat(gust)) : 0;
     const hasGust = gust && gustScale > 0;
 
+    // Calculate Feels Like (Apparent Temp)
+    let feelsLike = null;
+    if (temp !== '--' && humidity !== '--' && wind !== '-') {
+        feelsLike = calculateApparentTemp(parseFloat(temp), parseFloat(humidity), parseFloat(wind));
+    }
+
     return {
         humidity,
         wind,
@@ -1411,7 +1379,8 @@ async function getStationStats(cityName, townshipName = null) {
         gust,
         windScale,
         gustScale,
-        hasGust
+        hasGust,
+        feelsLike
     };
 }
 
@@ -1433,21 +1402,43 @@ async function fetchQuickStats(cityName, townshipName = null) {
 }
 
 function updateQuickStatsDOM(stats) {
-    if (DOM.statHumidity) DOM.statHumidity.textContent = stats.humidity + '%';
+    // Only update if we have valid data (not '--' or null)
+    if (DOM.statHumidity && stats.humidity !== '--' && stats.humidity != null) {
+        DOM.statHumidity.textContent = stats.humidity + '%';
+    }
+
     if (DOM.statWind) {
         // 陣風為 0 級或沒有陣風資料時，只顯示風速
-        DOM.statWind.textContent = stats.hasGust ? (stats.windScale + ' 級 · ' + stats.gustScale + ' 級') : (stats.windScale + ' 級');
-        // 更新標籤
-        var windLabel = DOM.statWind.parentElement.querySelector('.stat-name');
-        if (windLabel) {
-            windLabel.textContent = stats.hasGust ? '風速 · 陣風' : '風速';
+        // Check if we have valid wind data
+        if (stats.wind !== '-' && stats.wind != null) {
+            DOM.statWind.textContent = stats.hasGust ? (stats.windScale + ' 級 · ' + stats.gustScale + ' 級') : (stats.windScale + ' 級');
+            // 更新標籤
+            var windLabel = DOM.statWind.parentElement.querySelector('.stat-name');
+            if (windLabel) {
+                windLabel.textContent = stats.hasGust ? '風速 · 陣風' : '風速';
+            }
         }
     }
+
     // if (DOM.statFeels) DOM.statFeels.textContent = stats.temp + '°'; // Don't overwrite feels like with temp
+    // Fallback: If Feels Like is empty/invalid (e.g. City mode where AT is missing), use Calculated Feels Like or Current Temp
+    if (DOM.statFeels) {
+        const currentText = DOM.statFeels.textContent;
+        // If current text is empty/invalid OR we are in City mode (where we want to use station data if available)
+        // Actually, renderHeroWeather sets it to '--' or forecast value.
+        // If it's '--', we want to update it.
+        if (currentText.includes('--') || currentText === '-' || currentText === '-°') {
+            if (stats.feelsLike != null) {
+                DOM.statFeels.textContent = stats.feelsLike + '°';
+            } else if (stats.temp !== '--' && stats.temp != null) {
+                DOM.statFeels.textContent = stats.temp + '°';
+            }
+        }
+    }
 
     // 同步更新 Hero 區塊的大溫度（如果是即時資料）
     const heroTemp = document.querySelector('.hero-temp');
-    if (heroTemp && stats.temp !== '--') {
+    if (heroTemp && stats.temp !== '--' && stats.temp != null) {
         heroTemp.textContent = stats.temp;
     }
 }
@@ -2833,8 +2824,25 @@ function updateLastTime() {
     if (span) span.textContent = timeStr;
 }
 
-function setLoading(show) {
-    if (show) {
+// 計算水氣壓 (hPa)
+function calculateVaporPressure(temp, humidity) {
+    // Magnus formula
+    // e = (RH / 100) * 6.112 * exp((17.67 * T) / (T + 243.5))
+    return (humidity / 100) * 6.112 * Math.exp((17.67 * temp) / (temp + 243.5));
+}
+
+// 計算體感溫度 (User provided formula)
+// (1.04 × 溫度) + (0.2 × 水氣壓) - (0.65 × 風速) - 2.7
+function calculateApparentTemp(temp, humidity, windSpeed) {
+    if (temp == null || humidity == null || windSpeed == null) return null;
+    const e = calculateVaporPressure(temp, humidity);
+    const at = (1.04 * temp) + (0.2 * e) - (0.65 * windSpeed) - 2.7;
+    return Math.round(at); // Round to integer
+}
+
+// 顯示載入中
+function setLoading(isLoading) {
+    if (isLoading) {
         DOM.loadingOverlay?.classList.remove('hidden');
     } else {
         DOM.loadingOverlay?.classList.add('hidden');

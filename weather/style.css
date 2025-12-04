@@ -188,6 +188,8 @@ body {
     background: linear-gradient(135deg, #ff3b30 0%, #c41e3a 50%, #8b0000 100%);
     color: white;
     padding: 1rem 1.5rem;
+    padding-top: max(1rem, env(safe-area-inset-top));
+    /* Prevent status bar overlap */
     display: flex;
     align-items: center;
     gap: 1.25rem;
@@ -524,7 +526,7 @@ body {
     font-weight: 700;
     line-height: 1;
     letter-spacing: -0.04em;
-    text-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    /* text-shadow removed as requested */
 }
 
 .hero-unit {
