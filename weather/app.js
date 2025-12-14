@@ -50,10 +50,10 @@ const CITY_FORECAST_ENDPOINTS = {
 };
 
 const CITIES = [
-    '臺北市', '新北市', '桃園市', '臺中市', '臺南市', '高雄市',
-    '基隆市', '新竹市', '嘉義市', '新竹縣', '苗栗縣', '彰化縣',
-    '南投縣', '雲林縣', '嘉義縣', '屏東縣', '宜蘭縣', '花蓮縣',
-    '臺東縣', '澎湖縣', '金門縣', '連江縣'
+    '基隆市', '臺北市', '新北市', '桃園市', '新竹縣', '新竹市',
+    '宜蘭縣', '苗栗縣', '臺中市', '彰化縣', '花蓮縣', '南投縣',
+    '雲林縣', '嘉義市', '嘉義縣', '臺南市', '臺東縣', '高雄市',
+    '屏東縣', '澎湖縣', '金門縣', '連江縣'
 ];
 
 const PRIORITY_STATIONS = {
@@ -1367,10 +1367,10 @@ async function getStationStats(cityName, townshipName = null) {
 
     const obs = station.WeatherElement || {};
 
-    const humidity = obs.RelativeHumidity ?? '--';
-    const wind = obs.WindSpeed ?? '-';
-    const temp = obs.AirTemperature ?? '--';
-    const gust = obs.GustInfo?.PeakGustSpeed ?? null;
+    const humidity = sanitizeValue(obs.RelativeHumidity) ?? '--';
+    const wind = sanitizeValue(obs.WindSpeed) ?? '-';
+    const temp = sanitizeValue(obs.AirTemperature) ?? '--';
+    const gust = sanitizeValue(obs.GustInfo?.PeakGustSpeed) ?? null;
 
     const windScale = getWindScale(parseFloat(wind));
     const gustScale = gust ? getWindScale(parseFloat(gust)) : 0;
@@ -2843,6 +2843,14 @@ function calculateVaporPressure(temp, humidity) {
 
 // 計算體感溫度 (User provided formula)
 // (1.04 × 溫度) + (0.2 × 水氣壓) - (0.65 × 風速) - 2.7
+
+function sanitizeValue(val) {
+    if (val == null || val === '') return null;
+    const num = parseFloat(val);
+    if (!isNaN(num) && num <= -90) return null; // Filter out -99, -98 etc as errors
+    return val;
+}
+
 function calculateApparentTemp(temp, humidity, windSpeed) {
     if (temp == null || humidity == null || windSpeed == null) return null;
     const e = calculateVaporPressure(temp, humidity);
