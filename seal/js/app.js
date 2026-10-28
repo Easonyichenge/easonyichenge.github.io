@@ -3,6 +3,7 @@
  */
 
 document.addEventListener('DOMContentLoaded', () => {
+  initTrackingStatus();
   const particleEngine = new ParticleEngine('particle-canvas');
   window.particleEngine = particleEngine;
   initStickers(particleEngine);
@@ -196,4 +197,98 @@ function triggerStickerClick(element, x, y, particleEngine) {
   setTimeout(() => {
     element.classList.remove('popping');
   }, 450);
+}
+
+/**
+ * 貨物與郵件歷程狀態動態控制
+ * 抓取裝置系統時間 (Client Device Local Time)
+ * 目標時間：2026/10/29 12:00:00
+ * - 未滿 10/29 12:00:00 時：狀態為「轉運中」，最新節點為「轉運中・桃園」
+ * - 達到 10/29 12:00:00 起：狀態為「郵件抵達」，最新節點為「郵件抵達」
+ */
+const TRACKING_CONFIG = {
+  // 2026 年 10 月 29 日 12:00:00 (本地系統時間，月份為 0-indexed，9 代表 10 月)
+  targetTime: new Date(2026, 9, 29, 12, 0, 0),
+  arrivedStatus: {
+    icon: '📬',
+    text: '郵件抵達',
+    title: '郵件抵達',
+    time: '2026/10/29 - 12:00:00',
+    desc: '郵件已順利抵達目的地，包裹平安送達囉～'
+  },
+  transitStatus: {
+    icon: '🚚',
+    text: '轉運中'
+  }
+};
+
+function updateTrackingStatus() {
+  const now = new Date();
+  const urlParams = new URLSearchParams(window.location.search);
+
+  // 支援測試預覽模式：
+  // 1. 網址參數 ?arrived 或 ?preview=arrived -> 強制預覽「郵件抵達」
+  // 2. 網址參數 ?preview=transit -> 強制預覽「轉運中」
+  // 3. 控制台 window.__FORCE_ARRIVED
+  let isArrived = false;
+  if (urlParams.has('arrived') || urlParams.get('preview') === 'arrived' || window.__FORCE_ARRIVED === true) {
+    isArrived = true;
+  } else if (urlParams.get('preview') === 'transit' || window.__FORCE_ARRIVED === false) {
+    isArrived = false;
+  } else {
+    isArrived = now >= TRACKING_CONFIG.targetTime;
+  }
+
+  const statusIcon = document.getElementById('status-icon');
+  const statusText = document.getElementById('status-text');
+  const arrivedItem = document.getElementById('timeline-arrived');
+  const transitItem = document.getElementById('timeline-transit');
+  const transitTag = document.getElementById('transit-tag');
+
+  if (isArrived) {
+    if (statusIcon) statusIcon.textContent = TRACKING_CONFIG.arrivedStatus.icon;
+    if (statusText) statusText.textContent = TRACKING_CONFIG.arrivedStatus.text;
+    if (arrivedItem) {
+      arrivedItem.style.display = 'flex';
+      arrivedItem.classList.add('active');
+    }
+    if (transitItem) {
+      transitItem.classList.remove('active');
+    }
+    if (transitTag) {
+      transitTag.style.display = 'none';
+    }
+  } else {
+    if (statusIcon) statusIcon.textContent = TRACKING_CONFIG.transitStatus.icon;
+    if (statusText) statusText.textContent = TRACKING_CONFIG.transitStatus.text;
+    if (arrivedItem) {
+      arrivedItem.style.display = 'none';
+      arrivedItem.classList.remove('active');
+    }
+    if (transitItem) {
+      transitItem.classList.add('active');
+    }
+    if (transitTag) {
+      transitTag.style.display = 'inline-block';
+    }
+  }
+}
+
+// 提供控制台測試切換工具：可隨時在瀏覽器 console 執行 setTrackingPreview('arrived') 或 setTrackingPreview('transit')
+window.setTrackingPreview = function(status) {
+  if (status === 'arrived' || status === true) {
+    window.__FORCE_ARRIVED = true;
+  } else if (status === 'transit' || status === false) {
+    window.__FORCE_ARRIVED = false;
+  } else {
+    window.__FORCE_ARRIVED = null;
+  }
+  updateTrackingStatus();
+  console.log(`[一森貨運] 目前進度狀態已切換為: ${window.__FORCE_ARRIVED === null ? '跟隨裝置系統時間' : (window.__FORCE_ARRIVED ? '郵件抵達' : '轉運中')}`);
+};
+
+function initTrackingStatus() {
+  updateTrackingStatus();
+  // 每秒輪詢一次裝置時間，12:00:00 一到無須重新整理頁面即可即時變更為「郵件抵達」
+  setInterval(updateTrackingStatus, 1000);
 }

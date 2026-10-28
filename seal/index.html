@@ -231,11 +231,11 @@
       <!-- 當前最新狀態橫幅 -->
       <div class="current-status-banner">
         <div class="status-left">
-          <div class="status-truck-bubble">🚚</div>
+          <div class="status-truck-bubble" id="status-icon">🚚</div>
           <div class="status-text-wrap">
             <span class="status-now-label">● 目前狀態</span>
             <div class="status-now-val">
-              <span>轉運中</span>
+              <span id="status-text">轉運中</span>
               <span class="pulse-dot"></span>
             </div>
           </div>
@@ -246,8 +246,24 @@
       <div class="timeline-section">
         <ol class="timeline-list">
           
-          <!-- 最新進度：轉運中 (置頂) -->
-          <li class="timeline-item active">
+          <!-- 到達節點：郵件抵達 (裝置時間滿 10/29 12:00 自動出現) -->
+          <li class="timeline-item active" id="timeline-arrived" style="display: none;">
+            <div class="timeline-marker">📬</div>
+            <div class="timeline-content">
+              <time class="timeline-time">
+                <span>⏱️</span>
+                <span>2026/10/29 - 12:00:00</span>
+              </time>
+              <h2 class="timeline-title">
+                <span>郵件抵達</span>
+                <span class="active-tag">最新</span>
+              </h2>
+              <p class="timeline-desc">郵件已順利抵達目的地，包裹平安送達囉～</p>
+            </div>
+          </li>
+
+          <!-- 最新進度：轉運中 -->
+          <li class="timeline-item active" id="timeline-transit">
             <div class="timeline-marker">🚚</div>
             <div class="timeline-content">
               <time class="timeline-time">
@@ -256,7 +272,7 @@
               </time>
               <h2 class="timeline-title">
                 <span>轉運中・桃園</span>
-                <span class="active-tag">最新</span>
+                <span class="active-tag" id="transit-tag">最新</span>
               </h2>
               <p class="timeline-desc">貨物正在全速轉運中，包裹平安前進中～</p>
             </div>
