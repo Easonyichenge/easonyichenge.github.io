@@ -202,13 +202,21 @@ function triggerStickerClick(element, x, y, particleEngine) {
 /**
  * 貨物與郵件歷程狀態動態控制
  * 抓取裝置系統時間 (Client Device Local Time)
- * 目標時間：2026/10/29 12:00:00
- * - 未滿 10/29 12:00:00 時：狀態為「轉運中」，最新節點為「轉運中・桃園」
- * - 達到 10/29 12:00:00 起：狀態為「郵件抵達」，最新節點為「郵件抵達」
+ * 目標時程：
+ * - 2026/10/28 16:25:47：一森交寄郵件・桃園
+ * - 2026/10/28 19:55:45：轉運中・桃園
+ * - 2026/10/29 09:00:00：分發中 臺中
+ * - 2026/10/29 12:00:00：郵件抵達
+ *
+ * 狀態規則：
+ * 1. 未滿 10/29 09:00:00：目前狀態為「轉運中」，最新進度標籤在「轉運中・桃園」
+ * 2. 滿 10/29 09:00:00 且未滿 12:00:00：目前狀態為「分發中」，最新進度標籤在「分發中 臺中」
+ * 3. 達到 10/29 12:00:00 起：目前狀態為「郵件抵達」，最新進度標籤在「郵件抵達」
  */
 const TRACKING_CONFIG = {
-  // 2026 年 10 月 29 日 12:00:00 (本地系統時間，月份為 0-indexed，9 代表 10 月)
-  targetTime: new Date(2026, 9, 29, 12, 0, 0),
+  // 本地系統時間 (月份為 0-indexed，9 代表 10 月)
+  dispatchTime: new Date(2026, 9, 29, 9, 0, 0),
+  arrivedTime: new Date(2026, 9, 29, 12, 0, 0),
   arrivedStatus: {
     icon: '📬',
     text: '郵件抵達',
@@ -216,9 +224,19 @@ const TRACKING_CONFIG = {
     time: '2026/10/29 - 12:00:00',
     desc: '郵件已順利抵達目的地，包裹平安送達囉～'
   },
+  dispatchStatus: {
+    icon: '🛵',
+    text: '分發中',
+    title: '分發中 臺中',
+    time: '2026/10/29 - 09:00:00',
+    desc: '包裹已抵達臺中分發中心，正在進行分發作業～'
+  },
   transitStatus: {
     icon: '🚚',
-    text: '轉運中'
+    text: '轉運中',
+    title: '轉運中・桃園',
+    time: '2026/10/28 - 19:55:45',
+    desc: '貨物正在全速轉運中，包裹平安前進中～'
   }
 };
 
@@ -228,67 +246,126 @@ function updateTrackingStatus() {
 
   // 支援測試預覽模式：
   // 1. 網址參數 ?arrived 或 ?preview=arrived -> 強制預覽「郵件抵達」
-  // 2. 網址參數 ?preview=transit -> 強制預覽「轉運中」
-  // 3. 控制台 window.__FORCE_ARRIVED
-  let isArrived = false;
-  if (urlParams.has('arrived') || urlParams.get('preview') === 'arrived' || window.__FORCE_ARRIVED === true) {
-    isArrived = true;
-  } else if (urlParams.get('preview') === 'transit' || window.__FORCE_ARRIVED === false) {
-    isArrived = false;
+  // 2. 網址參數 ?dispatch 或 ?preview=dispatch -> 強制預覽「分發中 臺中」
+  // 3. 網址參數 ?transit 或 ?preview=transit -> 強制預覽「轉運中」
+  // 4. 控制台 window.setTrackingPreview('arrived' | 'dispatch' | 'transit' | null)
+  let stage = 'transit';
+  if (urlParams.has('arrived') || urlParams.get('preview') === 'arrived' || window.__FORCE_STATUS === 'arrived' || window.__FORCE_ARRIVED === true) {
+    stage = 'arrived';
+  } else if (urlParams.has('dispatch') || urlParams.get('preview') === 'dispatch' || window.__FORCE_STATUS === 'dispatch') {
+    stage = 'dispatch';
+  } else if (urlParams.has('transit') || urlParams.get('preview') === 'transit' || window.__FORCE_STATUS === 'transit' || window.__FORCE_ARRIVED === false) {
+    stage = 'transit';
   } else {
-    isArrived = now >= TRACKING_CONFIG.targetTime;
+    if (now >= TRACKING_CONFIG.arrivedTime) {
+      stage = 'arrived';
+    } else if (now >= TRACKING_CONFIG.dispatchTime) {
+      stage = 'dispatch';
+    } else {
+      stage = 'transit';
+    }
   }
 
   const statusIcon = document.getElementById('status-icon');
   const statusText = document.getElementById('status-text');
+
   const arrivedItem = document.getElementById('timeline-arrived');
+  const dispatchItem = document.getElementById('timeline-dispatch');
   const transitItem = document.getElementById('timeline-transit');
+
+  const arrivedTag = document.getElementById('arrived-tag');
+  const dispatchTag = document.getElementById('dispatch-tag');
   const transitTag = document.getElementById('transit-tag');
 
-  if (isArrived) {
+  if (stage === 'arrived') {
     if (statusIcon) statusIcon.textContent = TRACKING_CONFIG.arrivedStatus.icon;
     if (statusText) statusText.textContent = TRACKING_CONFIG.arrivedStatus.text;
+
     if (arrivedItem) {
       arrivedItem.style.display = 'flex';
       arrivedItem.classList.add('active');
     }
+    if (dispatchItem) {
+      dispatchItem.style.display = 'flex';
+      dispatchItem.classList.remove('active');
+    }
     if (transitItem) {
+      transitItem.style.display = 'flex';
       transitItem.classList.remove('active');
     }
-    if (transitTag) {
-      transitTag.style.display = 'none';
-    }
-  } else {
-    if (statusIcon) statusIcon.textContent = TRACKING_CONFIG.transitStatus.icon;
-    if (statusText) statusText.textContent = TRACKING_CONFIG.transitStatus.text;
+
+    if (arrivedTag) arrivedTag.style.display = 'inline-block';
+    if (dispatchTag) dispatchTag.style.display = 'none';
+    if (transitTag) transitTag.style.display = 'none';
+
+  } else if (stage === 'dispatch') {
+    if (statusIcon) statusIcon.textContent = TRACKING_CONFIG.dispatchStatus.icon;
+    if (statusText) statusText.textContent = TRACKING_CONFIG.dispatchStatus.text;
+
     if (arrivedItem) {
       arrivedItem.style.display = 'none';
       arrivedItem.classList.remove('active');
     }
+    if (dispatchItem) {
+      dispatchItem.style.display = 'flex';
+      dispatchItem.classList.add('active');
+    }
     if (transitItem) {
+      transitItem.style.display = 'flex';
+      transitItem.classList.remove('active');
+    }
+
+    if (arrivedTag) arrivedTag.style.display = 'none';
+    if (dispatchTag) dispatchTag.style.display = 'inline-block';
+    if (transitTag) transitTag.style.display = 'none';
+
+  } else {
+    // transit (未滿 10/29 09:00:00)
+    if (statusIcon) statusIcon.textContent = TRACKING_CONFIG.transitStatus.icon;
+    if (statusText) statusText.textContent = TRACKING_CONFIG.transitStatus.text;
+
+    if (arrivedItem) {
+      arrivedItem.style.display = 'none';
+      arrivedItem.classList.remove('active');
+    }
+    if (dispatchItem) {
+      dispatchItem.style.display = 'none';
+      dispatchItem.classList.remove('active');
+    }
+    if (transitItem) {
+      transitItem.style.display = 'flex';
       transitItem.classList.add('active');
     }
-    if (transitTag) {
-      transitTag.style.display = 'inline-block';
-    }
+
+    if (arrivedTag) arrivedTag.style.display = 'none';
+    if (dispatchTag) dispatchTag.style.display = 'none';
+    if (transitTag) transitTag.style.display = 'inline-block';
   }
 }
 
-// 提供控制台測試切換工具：可隨時在瀏覽器 console 執行 setTrackingPreview('arrived') 或 setTrackingPreview('transit')
+// 提供控制台測試切換工具：可隨時在瀏覽器 console 執行 setTrackingPreview('dispatch')、setTrackingPreview('arrived') 或 setTrackingPreview('transit')，傳入 null 恢復系統時間
 window.setTrackingPreview = function(status) {
   if (status === 'arrived' || status === true) {
-    window.__FORCE_ARRIVED = true;
+    window.__FORCE_STATUS = 'arrived';
+  } else if (status === 'dispatch') {
+    window.__FORCE_STATUS = 'dispatch';
   } else if (status === 'transit' || status === false) {
-    window.__FORCE_ARRIVED = false;
+    window.__FORCE_STATUS = 'transit';
   } else {
+    window.__FORCE_STATUS = null;
     window.__FORCE_ARRIVED = null;
   }
   updateTrackingStatus();
-  console.log(`[一森貨運] 目前進度狀態已切換為: ${window.__FORCE_ARRIVED === null ? '跟隨裝置系統時間' : (window.__FORCE_ARRIVED ? '郵件抵達' : '轉運中')}`);
+  const readable = {
+    arrived: '郵件抵達',
+    dispatch: '分發中 臺中',
+    transit: '轉運中'
+  };
+  console.log(`[一森貨運] 目前進度狀態已切換為: ${window.__FORCE_STATUS ? readable[window.__FORCE_STATUS] : '跟隨裝置系統時間'}`);
 };
 
 function initTrackingStatus() {
   updateTrackingStatus();
-  // 每秒輪詢一次裝置時間，12:00:00 一到無須重新整理頁面即可即時變更為「郵件抵達」
+  // 每秒輪詢一次裝置時間，時間一到無須重新整理頁面即可即時變更
   setInterval(updateTrackingStatus, 1000);
 }
