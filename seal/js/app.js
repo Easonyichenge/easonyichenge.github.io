@@ -229,7 +229,7 @@ const TRACKING_CONFIG = {
     text: '分發中',
     title: '分發中 臺中',
     time: '2026/10/29 - 09:16:19',
-    desc: '包裹已抵達臺中分發中心，正在進行分發作業～'
+    desc: '包裹已抵達臺中西區，正在進行分發作業～'
   },
   transitStatus: {
     icon: '🚚',
