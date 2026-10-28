@@ -279,6 +279,19 @@ body {
   font-weight: 700;
   letter-spacing: 1.5px;
   color: #3d312a;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* 防止 iOS/Safari 或行動裝置將純數字編號自動偵測並轉為藍色可點擊電話連結 */
+.tracking-code-val a,
+.tracking-code-val a:visited,
+.tracking-code-val a:hover,
+.tracking-code-val a:active {
+  color: inherit !important;
+  text-decoration: none !important;
+  pointer-events: none !important;
+  cursor: text !important;
 }
 
 /* 當前最新狀態橫幅 */

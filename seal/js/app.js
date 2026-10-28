@@ -205,12 +205,12 @@ function triggerStickerClick(element, x, y, particleEngine) {
  * 目標時程：
  * - 2026/10/28 16:25:47：一森交寄郵件・桃園
  * - 2026/10/28 19:55:45：轉運中・桃園
- * - 2026/10/29 09:16:19：分發中 臺中
+ * - 2026/10/29 09:16:19：分發中・臺中
  * - 2026/10/29 12:19:16：郵件抵達
  *
  * 狀態規則：
  * 1. 未滿 10/29 09:16:19：目前狀態為「轉運中」，最新進度標籤在「轉運中・桃園」
- * 2. 滿 10/29 09:16:19 且未滿 12:19:16：目前狀態為「分發中」，最新進度標籤在「分發中 臺中」
+ * 2. 滿 10/29 09:16:19 且未滿 12:19:16：目前狀態為「分發中」，最新進度標籤在「分發中・臺中」
  * 3. 達到 10/29 12:19:16 起：目前狀態為「郵件抵達」，最新進度標籤在「郵件抵達」
  */
 const TRACKING_CONFIG = {
@@ -227,7 +227,7 @@ const TRACKING_CONFIG = {
   dispatchStatus: {
     icon: '🛵',
     text: '分發中',
-    title: '分發中 臺中',
+    title: '分發中・臺中',
     time: '2026/10/29 - 09:16:19',
     desc: '包裹已抵達臺中市西屯區，正在進行分發作業～'
   },
@@ -246,7 +246,7 @@ function updateTrackingStatus() {
 
   // 支援測試預覽模式：
   // 1. 網址參數 ?arrived 或 ?preview=arrived -> 強制預覽「郵件抵達」
-  // 2. 網址參數 ?dispatch 或 ?preview=dispatch -> 強制預覽「分發中 臺中」
+  // 2. 網址參數 ?dispatch 或 ?preview=dispatch -> 強制預覽「分發中・臺中」
   // 3. 網址參數 ?transit 或 ?preview=transit -> 強制預覽「轉運中」
   // 4. 控制台 window.setTrackingPreview('arrived' | 'dispatch' | 'transit' | null)
   let stage = 'transit';
@@ -358,7 +358,7 @@ window.setTrackingPreview = function(status) {
   updateTrackingStatus();
   const readable = {
     arrived: '郵件抵達',
-    dispatch: '分發中 臺中',
+    dispatch: '分發中・臺中',
     transit: '轉運中'
   };
   console.log(`[一森貨運] 目前進度狀態已切換為: ${window.__FORCE_STATUS ? readable[window.__FORCE_STATUS] : '跟隨裝置系統時間'}`);
