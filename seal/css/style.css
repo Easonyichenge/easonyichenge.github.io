@@ -378,37 +378,20 @@ body {
 .timeline-list {
   position: relative;
   list-style: none;
-  padding-bottom: 8px;
 }
 
-/* 垂直連貫線：由頂端最新橙色漸層至底部粉色，中心點精準對齊 21px */
+/* 垂直連貫線：由頂端最新橙色漸層至底部粉色，以最下方郵箱作為起始節點 */
 .timeline-list::before {
   content: '';
   position: absolute;
-  top: 21px;
-  bottom: 7px; /* 延伸並精準銜接於起始原點中心 */
+  top: var(--timeline-top, 21px);
+  bottom: var(--timeline-bottom, 50px);
   left: 21px;
   transform: translateX(-50%);
   width: 3px;
   background: linear-gradient(to bottom, #ff9e00 0%, #ff758f 100%);
   border-radius: 999px;
   z-index: 1;
-}
-
-/* 一森交寄郵件進度線下方的起始原點 (Origin Dot)，中心點精準對齊 21px */
-.timeline-list::after {
-  content: '';
-  position: absolute;
-  bottom: 0px;
-  left: 21px;
-  transform: translateX(-50%);
-  width: 14px;
-  height: 14px;
-  background: #ff758f;
-  border: 2.5px solid #ffffff;
-  border-radius: 50%;
-  box-shadow: 0 0 0 2px #ff8da1, 0 3px 8px rgba(255, 117, 143, 0.35);
-  z-index: 3;
 }
 
 .timeline-item {
@@ -575,11 +558,6 @@ body {
   }
 
   .timeline-list::before {
-    left: 18px;
-    transform: translateX(-50%);
-  }
-
-  .timeline-list::after {
     left: 18px;
     transform: translateX(-50%);
   }

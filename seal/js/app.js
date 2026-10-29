@@ -6,6 +6,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const particleEngine = new ParticleEngine('particle-canvas');
   window.particleEngine = particleEngine;
   initStickers(particleEngine);
+  updateTimelineLine();
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(updateTimelineLine);
+  }
 });
 
 // 14 款專屬去背貼圖檔名
@@ -121,8 +125,32 @@ function initStickers(particleEngine) {
         el.style.width = `${baseSize}px`;
         el.style.height = `${baseSize}px`;
       });
+      updateTimelineLine();
     }, 150);
   });
+}
+
+/**
+ * 自動計算時間軸連貫線長度，使頂部始於最新節點、底部精準終於起始郵箱中心
+ */
+function updateTimelineLine() {
+  const list = document.querySelector('.timeline-list');
+  if (!list) return;
+  const markers = list.querySelectorAll('.timeline-marker');
+  if (markers.length < 2) return;
+
+  const firstMarker = markers[0];
+  const lastMarker = markers[markers.length - 1];
+
+  const listRect = list.getBoundingClientRect();
+  const firstRect = firstMarker.getBoundingClientRect();
+  const lastRect = lastMarker.getBoundingClientRect();
+
+  const top = (firstRect.top + firstRect.height / 2) - listRect.top;
+  const bottom = listRect.bottom - (lastRect.top + lastRect.height / 2);
+
+  list.style.setProperty('--timeline-top', `${top}px`);
+  list.style.setProperty('--timeline-bottom', `${bottom}px`);
 }
 
 /**
