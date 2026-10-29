@@ -7,7 +7,7 @@ class ParticleEngine {
     if (!this.canvas) return;
     this.ctx = this.canvas.getContext('2d');
     this.particles = [];
-    this.symbols = ['❤️', '💖', '✨', '🌸', '⭐', '🐾', '🎀'];
+    this.symbols = ['❤️', '💖', '✨', '🌸', '⭐', '🦭', '🎀'];
 
     this.resize();
     window.addEventListener('resize', () => this.resize());
