@@ -1,0 +1,1074 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智慧多功能處理工具</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        /* 1. 全域樣式與色彩變數 */
+        :root {
+            --bg-color: #f0f0f5; --card-bg-color: #ffffff; --text-color: #1d1d1f;
+            --secondary-text-color: #86868b; --border-color: #d2d2d7; --accent-color: #007aff;
+            --accent-color-hover: #0071e3; --success-color: #34c759; --secondary-button-bg: #6e6e73;
+            --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            --radius-lg: 18px; --radius-md: 12px; --radius-sm: 8px;
+            --transition-speed: 0.3s;
+            --shadow-color: rgba(0, 0, 0, 0.05);
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg-color: #1c1c1e; --card-bg-color: #2c2c2e; --text-color: #f5f5f7;
+                --secondary-text-color: #8d8d92; --border-color: #424245;
+                --secondary-button-bg: #505052;
+                --shadow-color: rgba(0, 0, 0, 0.2);
+            }
+        }
+        body {
+            font-family: var(--font-family); background-color: var(--bg-color); color: var(--text-color);
+            margin: 0; padding: 2rem; display: flex; justify-content: center;
+            transition: background-color var(--transition-speed), color var(--transition-speed);
+        }
+        .main-container { width: 100%; max-width: 1200px; display: flex; flex-direction: column; gap: 1.25rem; }
+        header { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 0.5rem; }
+        header h1 { font-size: 2.5rem; font-weight: 600; margin: 0; display: flex; align-items: center; gap: 0.75rem; }
+        header .description { font-size: 1.1rem; color: var(--secondary-text-color); max-width: 600px; }
+
+        /* 2. 頁籤切換介面 */
+        .tool-switcher { display: flex; justify-content: center; background-color: var(--card-bg-color); padding: 8px; border-radius: var(--radius-md); box-shadow: 0 4px 12px var(--shadow-color); max-width: 480px; margin: 0 auto; }
+        .tool-tab {
+            flex: 1; text-align: center; padding: 10px 20px; border-radius: var(--radius-sm);
+            cursor: pointer; font-weight: 500; border: none; background-color: transparent;
+            color: var(--secondary-text-color); transition: all 0.3s ease;
+            white-space: nowrap; font-size: 16px;
+        }
+        .tool-tab.active { background-color: var(--bg-color); color: var(--text-color); box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
+
+        /* 3. 工具面板容器 */
+        .tool-panel { display: none; flex-direction: column; gap: 1.5rem; }
+        .tool-panel.active { display: flex; }
+        .tool-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+
+        /* 4. 通用卡片與按鈕樣式 */
+        .editor-section, .card { background-color: var(--card-bg-color); border-radius: var(--radius-lg); padding: 1.5rem; box-shadow: 0 4px 12px var(--shadow-color); display: flex; flex-direction: column; transition: background-color var(--transition-speed); }
+        .editor-section h2, #videoTool .card h3 { font-size: 1rem; font-weight: 600; margin: 0 0 1rem 0; color: var(--secondary-text-color); }
+        .button {
+            background-color: var(--accent-color); color: white; border: none; padding: 12px 24px;
+            font-size: 1rem; font-weight: 500; border-radius: var(--radius-md); cursor: pointer;
+            transition: background-color 0.2s, transform 0.1s;
+            display: inline-flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none;
+        }
+        .button:hover { background-color: var(--accent-color-hover); }
+        .button:active { transform: scale(0.98); }
+        .button.secondary { background-color: var(--secondary-button-bg); }
+
+        /* 5. 文字工具樣式 */
+        .options-panel { border: none; padding: 1.25rem 2rem; }
+        .options-grid { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 1rem 1.5rem; }
+        .radio-group { display: flex; flex-wrap: wrap; gap: 0.5rem; background-color: var(--bg-color); padding: 5px; border-radius: var(--radius-md); }
+        .radio-group input[type="radio"] { display: none; }
+        .radio-group .radio-label { padding: 8px 16px; border-radius: var(--radius-sm); cursor: pointer; transition: all 0.2s ease-in-out; color: var(--text-color); font-weight: 500; }
+        .radio-group input[type="radio"]:checked + .radio-label { background-color: var(--card-bg-color); box-shadow: 0 2px 4px rgba(0,0,0,0.08); }
+        .char-count-container { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 1.5rem; max-height: 0; opacity: 0; overflow: hidden; transition: max-height 0.4s ease, opacity 0.4s ease, margin-top 0.4s ease; }
+        .char-count-container.visible { max-height: 100px; opacity: 1; margin-top: 1rem; }
+        .char-count-container input { padding: 12px; font-size: 1rem; width: 80px; text-align: center; }
+        textarea, .input-like {
+            width: 100%; box-sizing: border-box; border: none; border-radius: var(--radius-md);
+            background-color: var(--bg-color); color: var(--text-color);
+            transition: all var(--transition-speed);
+        }
+        textarea:focus, .input-like:focus { outline: none; box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.3); }
+        .editor-section textarea { flex-grow: 1; min-height: 40vh; padding: 1rem; font-size: 1rem; line-height: 1.6; resize: none; }
+        .editor-section textarea:focus { outline: 2px solid var(--accent-color); box-shadow: none; }
+        .text-tool-footer { text-align: center; position: relative; }
+        input[type=number]::-webkit-inner-spin-button,
+        input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        input[type=number] { -moz-appearance: textfield; }
+
+        /* 6. 圖片工具介面 */
+        .image-tool-card { min-height: 45vh; }
+        #image-upload-label { display: flex; flex-direction: column; flex-grow: 1; cursor: pointer; border-radius: var(--radius-md); }
+        #image-preview-box { display: grid; place-items: center; flex-grow: 1; border: 2px dashed var(--border-color); border-radius: var(--radius-md); background-color: var(--bg-color); transition: all var(--transition-speed); padding: 1rem; }
+        .editor-section.has-content #image-preview-box { background-color: transparent; border-color: transparent; }
+        #image-upload-label:hover #image-preview-box:not(.editor-section.has-content *) { border-color: var(--accent-color); }
+        .placeholder, #original-image-preview { grid-area: 1 / 1; transition: opacity var(--transition-speed) ease; }
+        .placeholder { display: flex; flex-direction: column; align-items: center; gap: 1rem; color: var(--secondary-text-color); text-align: center; }
+        .placeholder svg { width: 48px; height: 48px; opacity: 0.6; }
+        #original-image-preview { opacity: 0; }
+        .editor-section.has-content .placeholder { opacity: 0; pointer-events: none; }
+        .editor-section.has-content #original-image-preview { opacity: 1; }
+        #image-tool-grid img, #image-tool-grid canvas { max-width: 100%; max-height: 45vh; height: auto; object-fit: contain; border-radius: var(--radius-sm); }
+        #image-output-container { display: flex; flex-direction: column; justify-content: center; align-items: center; flex-grow: 1; padding: 1rem; position: relative; }
+        .image-tool-footer { text-align: center; margin-top: 1rem; }
+        #download-button { background-color: var(--success-color); }
+        .result-placeholder { position: absolute; }
+        #canvas, #image-output-section .image-tool-footer { opacity: 0; transition: opacity 0.4s ease; }
+        #imageTool.has-result .result-placeholder { opacity: 0; pointer-events: none; }
+        #imageTool.has-result #canvas, #imageTool.has-result #image-output-section .image-tool-footer { opacity: 1; }
+        input[type="file"] { display: none; }
+
+        /* 7. 影片播放器產生器樣式 */
+        #videoTool .card { padding: 25px 30px; border: 1px solid var(--border-color); }
+        #videoTool .card h3 { font-size: 1.2rem; font-weight: 600; margin: 0 0 20px 0; display: flex; align-items: center; gap: 10px; color: var(--text-color); }
+        #videoUrlInput { padding: 15px; font-size: 16px; }
+        #videoTool .option-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border-color); }
+        #videoTool .option-item:last-child, #videoTool .control-grid .option-item { border-bottom: none; }
+        #videoTool .option-item label { font-size: 1rem; font-weight: 500; }
+        #videoTool .option-item .note { font-size: 0.9rem; color: var(--secondary-text-color); margin-top: 4px; }
+        #videoTool .option-item.disabled label, #videoTool .option-item.disabled .note { color: var(--secondary-text-color); opacity: 0.6; cursor: not-allowed; }
+        #videoTool #subtitlesSection.disabled > *:not(h4) { opacity: 0.6; pointer-events: none; }
+        #videoTool .control-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0 20px; }
+        #videoTool .action-buttons { display: flex; gap: 15px; margin-top: 10px; }
+        #videoTool .action-buttons button { flex-grow: 1; padding: 15px 20px; font-size: 1rem; font-weight: 600; }
+        #generateBtn:hover { background-color: var(--accent-color-hover); }
+        #videoTool .hidden { display: none; }
+        #videoTool .switch { position: relative; display: inline-block; width: 51px; height: 31px; }
+        #videoTool .switch input { opacity: 0; width: 0; height: 0; }
+        #videoTool .slider { position: absolute; cursor: pointer; inset: 0; background-color: #e9e9eb; transition: .4s; border-radius: 34px; }
+        #videoTool .slider:before { position: absolute; content: ""; height: 27px; width: 27px; left: 2px; bottom: 2px; background-color: white; transition: .4s; border-radius: 50%; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        #videoTool input:checked + .slider { background-color: var(--accent-color); }
+        #videoTool input:checked + .slider:before { transform: translateX(20px); }
+        #videoTool input:disabled + .slider { cursor: not-allowed; opacity: 0.6; }
+        @media (prefers-color-scheme: dark) {
+            #videoTool .slider { background-color: #39393d; }
+            #videoTool input:disabled + .slider { opacity: 0.5; }
+            #videoTool input:disabled + .slider:before { background-color: #2c2c2e; }
+        }
+        
+        #codeOutput {
+            min-height: 250px;
+            font-size: 0.9rem;
+            font-family: "SF Mono", "Fira Code", "Fira Mono", "Roboto Mono", "Courier New", monospace;
+            line-height: 1.6;
+            resize: none;
+            padding: 1rem;
+        }
+
+        /* 7b. 新增的字幕設定樣式 */
+        .subtitle-entry {
+            background-color: var(--bg-color);
+            border-radius: var(--radius-md);
+            padding: 1.25rem;
+            margin-bottom: 1rem;
+            position: relative;
+        }
+        .subtitle-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            padding-right: 2.5rem; 
+        }
+        .subtitle-grid .input-group { display: flex; flex-direction: column; }
+        .subtitle-grid .input-group.full-width { grid-column: 1 / -1; }
+        .subtitle-grid .input-group label { font-size: 0.9rem; font-weight: 500; margin-bottom: 0.5rem; color: var(--secondary-text-color); }
+        .subtitle-grid .input-group .input-like { padding: 12px; font-size: 1rem; background-color: var(--card-bg-color); }
+        .delete-subtitle-btn {
+            position: absolute; top: 50%; right: 1.25rem;
+            transform: translateY(-50%); background: none; border: none;
+            color: var(--secondary-text-color); cursor: pointer; font-size: 1.1rem;
+            padding: 5px; line-height: 1; transition: color 0.2s ease;
+        }
+        .delete-subtitle-btn:hover, .delete-subtitle-btn:active { color: #ff3b30; }
+
+        /* 8. 全域通知與響應式 */
+        #notification {
+            position: fixed; bottom: 2rem; left: 50%;
+            transform: translateX(-50%); background-color: rgba(40, 40, 40, 0.85); color: white;
+            padding: 12px 24px; border-radius: var(--radius-md); font-size: 1rem; font-weight: 500; z-index: 100;
+            opacity: 0; visibility: hidden; pointer-events: none; backdrop-filter: blur(5px);
+            transition: opacity 0.3s, visibility 0.3s, transform 0.3s;
+        }
+        #notification.show { opacity: 1; visibility: visible; transform: translate(-50%, -10px); }
+        @media (max-width: 800px) {
+            body { padding: 1rem; }
+            .tool-grid { grid-template-columns: 1fr; }
+            .options-panel { padding: 1rem 1.5rem; }
+            .options-grid { grid-template-columns: 1fr; }
+            .image-tool-card { min-height: 35vh; }
+            .subtitle-grid { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 500px) {
+            .big-play-button {
+                display: none;
+            }
+        }
+
+        /* 9. Custom Scrollbar */
+        textarea::-webkit-scrollbar { width: 10px; }
+        textarea::-webkit-scrollbar-track { background-color: var(--bg-color); border-radius: 10px; }
+        textarea::-webkit-scrollbar-thumb {
+            background-color: var(--border-color);
+            border-radius: 10px;
+            transition: background-color var(--transition-speed);
+        }
+        textarea::-webkit-scrollbar-thumb:hover { background-color: var(--secondary-text-color); }
+    </style>
+</head>
+<body>
+    <div id="notification" role="status" aria-live="polite"></div>
+
+    <main class="main-container">
+        <header>
+            <h1>
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                <span>智慧多功能處理工具</span>
+            </h1>
+            <p class="description">在頁面任一處貼上內容，系統將自動偵測並切換至對應工具。</p>
+        </header>
+
+        <nav class="tool-switcher">
+            <button class="tool-tab active" data-tool="textTool">文字排列</button>
+            <button class="tool-tab" data-tool="imageTool">圖片圓角</button>
+            <button class="tool-tab" data-tool="videoTool">影片內嵌</button>
+        </nav>
+
+        <!-- 文字排列工具 -->
+        <div id="textTool" class="tool-panel active">
+            <fieldset class="options-panel card">
+                <div id="optionsContainer">
+                    <div class="options-grid">
+                        <label>換行模式:</label>
+                        <div class="radio-group">
+                            <input type="radio" id="wrap-sentence" name="wrapMode" value="sentence" checked><label for="wrap-sentence" class="radio-label">智慧分段</label>
+                            <input type="radio" id="wrap-reflow" name="wrapMode" value="reflow"><label for="wrap-reflow" class="radio-label">段落重排</label>
+                            <input type="radio" id="wrap-fixed" name="wrapMode" value="fixed"><label for="wrap-fixed" class="radio-label">固定字數</label>
+                        </div>
+                    </div>
+                    <div class="char-count-container" id="charCountContainer"><label>每行字數:</label><input type="number" id="wrapChars" class="input-like" value="50" min="10" max="200"></div>
+                </div>
+            </fieldset>
+            <div class="tool-grid">
+                <section class="editor-section"><h2>原始文字</h2><textarea id="inputText" placeholder="在此貼上文字..."></textarea></section>
+                <section class="editor-section"><h2>清理結果</h2><textarea id="outputText" readonly placeholder="處理後的文字將顯示在這裡..."></textarea></section>
+            </div>
+            <footer class="text-tool-footer">
+                <button id="copyButton" class="button">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                    <span>複製文字結果</span>
+                </button>
+            </footer>
+        </div>
+
+        <!-- 圖片圓角工具 -->
+        <div id="imageTool" class="tool-panel">
+            <div id="image-tool-grid" class="tool-grid">
+                <section id="image-input-section" class="editor-section image-tool-card">
+                    <h2>原始圖片</h2>
+                    <label for="image-upload" id="image-upload-label" tabindex="0">
+                        <div id="image-preview-box">
+                            <div class="placeholder">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+                                <span>貼上、點擊或拖曳檔案至此</span>
+                            </div>
+                            <img id="original-image-preview" src="" alt="Original image preview">
+                        </div>
+                    </label>
+                    <footer class="image-tool-footer"><button id="reset-image-button" class="button secondary" style="display: none;">清除圖片</button></footer>
+                </section>
+                <section id="image-output-section" class="editor-section image-tool-card">
+                    <h2>圓角結果</h2>
+                    <div id="image-output-container">
+                        <div class="placeholder result-placeholder">
+                           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2.69l.34 9.35 9.35.34L12 21.31l-9.69-8.93 9.35-.34z"></path></svg>
+                            <span>處理結果將顯示於此</span>
+                        </div>
+                        <canvas id="canvas"></canvas>
+                    </div>
+                    <footer class="image-tool-footer"><a href="#" id="download-button" class="button" download="rounded-image.png">下載圖片</a></footer>
+                </section>
+            </div>
+        </div>
+        <input type="file" id="image-upload" accept="image/*">
+
+        <!-- 影片內嵌工具 -->
+        <div id="videoTool" class="tool-panel">
+            <div class="card">
+                <h3><i class="fas fa-link" aria-hidden="true"></i> 影片來源</h3>
+                <input type="url" id="videoUrlInput" class="input-like" placeholder="貼上 YouTube / .mp4 / .m3u8 網址...">
+            </div>
+            
+            <div class="card">
+                <h3><i class="fas fa-cogs" aria-hidden="true"></i> 通用設定</h3>
+                <div class="option-item">
+                    <div><label for="autoplayCheckbox">自動播放</label><div class="note">影片將會靜音自動播放</div></div>
+                    <label class="switch"><input type="checkbox" id="autoplayCheckbox"><span class="slider"></span></label>
+                </div>
+                <div class="option-item">
+                    <div><label for="loopCheckbox">重複播放</label><div class="note">影片結束後自動重新開始</div></div>
+                    <label class="switch"><input type="checkbox" id="loopCheckbox"><span class="slider"></span></label>
+                </div>
+            </div>
+    
+            <div class="card">
+                <h3><i class="fas fa-sliders-h" aria-hidden="true"></i> 播放工具</h3>
+                <div class="control-grid">
+                    <div class="option-item"><label for="showPlayPauseCheckbox">播放/暫停</label><label class="switch"><input type="checkbox" id="showPlayPauseCheckbox"><span class="slider"></span></label></div>
+                    <div class="option-item"><label for="showBigPlayButtonCheckbox">中心播放按鈕</label><label class="switch"><input type="checkbox" id="showBigPlayButtonCheckbox"><span class="slider"></span></label></div>
+                    <div class="option-item"><label for="showRewindCheckbox">倒退 10 秒</label><label class="switch"><input type="checkbox" id="showRewindCheckbox"><span class="slider"></span></label></div>
+                    <div class="option-item"><label for="showForwardCheckbox">快轉 10 秒</label><label class="switch"><input type="checkbox" id="showForwardCheckbox"><span class="slider"></span></label></div>
+                    <div class="option-item"><label for="showProgressBarCheckbox">進度列</label><label class="switch"><input type="checkbox" id="showProgressBarCheckbox"><span class="slider"></span></label></div>
+                    <div class="option-item"><label for="showVolumeCheckbox">音量</label><label class="switch"><input type="checkbox" id="showVolumeCheckbox"><span class="slider"></span></label></div>
+                    <div class="option-item"><label for="showFullscreenCheckbox">全螢幕</label><label class="switch"><input type="checkbox" id="showFullscreenCheckbox"><span class="slider"></span></label></div>
+                    <div class="option-item" id="speedOptionItem"><label for="showSpeedControlCheckbox">播放速度</label><label class="switch"><input type="checkbox" id="showSpeedControlCheckbox"><span class="slider"></span></label></div>
+                    <div class="option-item" id="qualityOptionItem"><label for="showQualityControlCheckbox">畫質選擇</label><label class="switch"><input type="checkbox" id="showQualityControlCheckbox"><span class="slider"></span></label></div>
+                    <div class="option-item" id="pipOptionItem"><label for="showPipCheckbox">畫中畫</label><label class="switch"><input type="checkbox" id="showPipCheckbox"><span class="slider"></span></label></div>
+                    <div class="option-item" id="airplayOptionItem"><label for="showAirplayCheckbox">AirPlay</label><label class="switch"><input type="checkbox" id="showAirplayCheckbox"><span class="slider"></span></label></div>
+                </div>
+
+                <div id="subtitlesSection" style="margin-top: 20px; border-top: 1px solid var(--border-color); padding-top: 20px;">
+                    <h4 style="font-size: 1rem; font-weight: 600; margin: 0 0 1rem 0; color: var(--text-color);">字幕設定 (VTT 格式)</h4>
+                    <div id="subtitleEntriesContainer">
+                    </div>
+                    <button id="addSubtitleBtn" class="button secondary" style="width: 100%; justify-content: center; padding: 10px;">
+                        + 新增字幕
+                    </button>
+                </div>
+            </div>
+            
+            <div class="action-buttons">
+                <button id="generateBtn" class="button">產生並複製程式碼</button>
+            </div>
+            
+            <div id="resultContainer" class="card hidden">
+                <h3><i class="fas fa-code" aria-hidden="true"></i> 內嵌程式碼</h3>
+                <textarea id="codeOutput" class="input-like" readonly></textarea>
+            </div>
+        </div>
+    </main>
+
+    <script>
+    (function() {
+        'use strict';
+
+        /**
+         * ----------------------------------------------------------------
+         * MainApp: 主應用程式模組，負責全域事件處理和工具切換
+         * ----------------------------------------------------------------
+         */
+        const MainApp = {
+            state: { activeTool: 'textTool' },
+            dom: {},
+            init() {
+                this.dom = {
+                    tabs: document.querySelectorAll('.tool-tab'),
+                    panels: document.querySelectorAll('.tool-panel'),
+                    notification: document.getElementById('notification'),
+                };
+                this.bindGlobalEvents();
+                TextTool.init(this.showNotification.bind(this));
+                ImageTool.init(this.showNotification.bind(this));
+                VideoTool.init(this.showNotification.bind(this));
+            },
+            bindGlobalEvents() {
+                this.dom.tabs.forEach(tab => tab.addEventListener('click', () => this.switchTool(tab.dataset.tool)));
+                document.addEventListener('paste', this.handleGlobalPaste.bind(this));
+                document.addEventListener('dragover', e => e.preventDefault());
+                document.addEventListener('drop', e => e.preventDefault());
+            },
+            switchTool(toolId) {
+                if (this.state.activeTool === toolId) return;
+                this.state.activeTool = toolId;
+                this.dom.panels.forEach(panel => panel.classList.toggle('active', panel.id === toolId));
+                this.dom.tabs.forEach(tab => tab.classList.toggle('active', tab.dataset.tool === toolId));
+            },
+            handleGlobalPaste(event) {
+                const items = event.clipboardData?.items || [];
+                const text = event.clipboardData?.getData('text/plain') || '';
+                const isImagePasted = Array.from(items).some(item => item.kind === 'file' && item.type.startsWith('image/'));
+                const isUrlPasted = text.trim().startsWith('http') && !isImagePasted;
+
+                if (isImagePasted) {
+                    this.switchTool('imageTool');
+                    ImageTool.handlePagePaste(event);
+                } else if (isUrlPasted) {
+                    this.switchTool('videoTool');
+                    VideoTool.handlePagePaste(event);
+                } else if (text) {
+                    this.switchTool('textTool');
+                    TextTool.handlePagePaste(event);
+                }
+            },
+            showNotification(message, duration = 3000) {
+                this.dom.notification.textContent = message;
+                this.dom.notification.classList.add('show');
+                setTimeout(() => this.dom.notification.classList.remove('show'), duration);
+            }
+        };
+
+        /**
+         * ----------------------------------------------------------------
+         * TextTool: 文字排列工具模組
+         * ----------------------------------------------------------------
+         */
+        const TextTool = {
+            CONFIG: {
+                DEBOUNCE_DELAY: 250,
+                REGEX: {
+                    FOOTNOTE: /\[\d+\]|\(\d+\)|【\d+】|[¹²³⁴⁵⁶⁷⁸⁹⁰]+|([a-zA-Z\u4e00-\u9fa5])\d+/g,
+                    WHITESPACE: /\s+/g,
+                    SENTENCE_END: /([。！？!?])\s*/g,
+                    PARAGRAPH_BREAK: /\n\s*\n/,
+                    LINE_BREAK: /\s*\n\s*/g,
+                }
+            },
+            state: { rawText: '', wrapMode: 'sentence', wrapWidth: 50 },
+            dom: {},
+            debounceTimer: null,
+            showNotification: null,
+            init(showNotificationCallback) {
+                this.showNotification = showNotificationCallback;
+                this.cacheDOM();
+                this.bindEvents();
+                this.updateState({ wrapMode: 'sentence', wrapWidth: 50 });
+            },
+            cacheDOM() {
+                this.dom = {
+                    inputText: document.getElementById('inputText'),
+                    outputText: document.getElementById('outputText'),
+                    copyButton: document.getElementById('copyButton'),
+                    optionsContainer: document.getElementById('optionsContainer'),
+                    charCountContainer: document.getElementById('charCountContainer'),
+                    wrapCharsInput: document.getElementById('wrapChars'),
+                };
+            },
+            bindEvents() {
+                this.dom.inputText.addEventListener('input', (e) => this.debounce(() => this.updateState({ rawText: e.target.value })));
+                this.dom.optionsContainer.addEventListener('input', this.handleOptionsChange.bind(this));
+                this.dom.copyButton.addEventListener('click', this.copyToClipboard.bind(this));
+            },
+            handleOptionsChange(event) {
+                const { name, value, type, id } = event.target;
+                if (type === 'radio' && name === 'wrapMode') {
+                    this.updateState({ wrapMode: value });
+                } else if (id === 'wrapChars') {
+                    this.debounce(() => this.updateState({ wrapWidth: parseInt(value, 10) || 50 }));
+                }
+            },
+            handlePagePaste(event) {
+                const pastedText = event.clipboardData?.getData('text/plain');
+                if (pastedText && !(event.clipboardData?.files.length > 0)) {
+                    event.preventDefault();
+                    this.updateState({ rawText: pastedText });
+                    requestAnimationFrame(() => this.copyToClipboard());
+                }
+            },
+            updateState(newState) {
+                this.state = { ...this.state, ...newState };
+                this.render();
+            },
+            render() {
+                this.dom.charCountContainer.classList.toggle('visible', this.state.wrapMode === 'fixed');
+                if (this.dom.inputText.value !== this.state.rawText) {
+                    this.dom.inputText.value = this.state.rawText;
+                }
+                const cleanedText = this.cleanFootnotes(this.state.rawText);
+                this.dom.outputText.value = this.formatText(cleanedText, this.state.wrapMode, this.state.wrapWidth);
+            },
+            cleanFootnotes(text) {
+                return text.replace(this.CONFIG.REGEX.FOOTNOTE, (match, p1) => p1 || '');
+            },
+            formatText(text, mode, width) {
+                if (!text) return '';
+                switch (mode) {
+                    case 'sentence':
+                        return text.replace(this.CONFIG.REGEX.WHITESPACE, ' ').trim().replace(this.CONFIG.REGEX.SENTENCE_END, '$1\n\n').trim();
+                    case 'reflow':
+                        return text.split(this.CONFIG.REGEX.PARAGRAPH_BREAK).map(p => p.trim().replace(this.CONFIG.REGEX.LINE_BREAK, ' ')).filter(Boolean).join('\n\n');
+                    case 'fixed':
+                        const singleLine = text.replace(this.CONFIG.REGEX.WHITESPACE, '');
+                        if (!singleLine) return '';
+                        const lines = [];
+                        for (let i = 0; i < singleLine.length; i += width) {
+                            lines.push(singleLine.substring(i, i + width));
+                        }
+                        return lines.join('\n');
+                    default:
+                        return text;
+                }
+            },
+            copyToClipboard() {
+                const textToCopy = this.dom.outputText.value;
+                if (!textToCopy) {
+                    this.showNotification('請輸入文字內容！');
+                    return;
+                }
+                navigator.clipboard.writeText(textToCopy).then(() => {
+                    this.showNotification('已複製 ✓');
+                }).catch(err => console.error('文字複製失敗:', err));
+            },
+            debounce(func) {
+                clearTimeout(this.debounceTimer);
+                this.debounceTimer = setTimeout(func, this.CONFIG.DEBOUNCE_DELAY);
+            }
+        };
+
+        /**
+         * ----------------------------------------------------------------
+         * ImageTool: 圖片圓角工具模組
+         * ----------------------------------------------------------------
+         */
+        const ImageTool = {
+            dom: {},
+            ctx: null,
+            showNotification: null,
+            init(showNotificationCallback) {
+                this.showNotification = showNotificationCallback;
+                this.cacheDOM();
+                this.bindEvents();
+                this.resetUI();
+            },
+            cacheDOM() {
+                this.dom = {
+                    panel: document.getElementById('imageTool'),
+                    inputSection: document.getElementById('image-input-section'),
+                    uploadLabel: document.getElementById('image-upload-label'),
+                    originalImagePreview: document.getElementById('original-image-preview'),
+                    canvas: document.getElementById('canvas'),
+                    imageUploadInput: document.getElementById('image-upload'),
+                    downloadButton: document.getElementById('download-button'),
+                    resetButton: document.getElementById('reset-image-button'),
+                };
+                this.ctx = this.dom.canvas.getContext('2d');
+            },
+            bindEvents() {
+                this.dom.imageUploadInput.addEventListener('change', e => {
+                    if (e.target.files?.[0]) this.processImage(e.target.files[0]);
+                });
+                this.dom.uploadLabel.addEventListener('drop', e => {
+                    e.preventDefault();
+                    if (e.dataTransfer.files?.[0]) this.processImage(e.dataTransfer.files[0]);
+                });
+                this.dom.resetButton.addEventListener('click', () => this.resetUI());
+            },
+            handlePagePaste(event) {
+                const imageFile = Array.from(event.clipboardData?.items || []).find(item => item.kind === 'file' && item.type.startsWith('image/'))?.getAsFile();
+                if (imageFile) {
+                    event.preventDefault();
+                    this.processImage(imageFile);
+                }
+            },
+            resetUI() {
+                this.dom.panel.classList.remove('has-result');
+                this.dom.inputSection.classList.remove('has-content');
+                this.dom.originalImagePreview.src = '';
+                this.dom.downloadButton.href = '#';
+                this.dom.resetButton.style.display = 'none';
+                this.dom.imageUploadInput.value = '';
+            },
+            async copyImageToClipboard() {
+                try {
+                    const blob = await new Promise(resolve => this.dom.canvas.toBlob(resolve, 'image/png'));
+                    if (!blob) throw new Error('Canvas to Blob conversion failed.');
+                    await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+                    this.showNotification('處理完成！已複製 ✓');
+                } catch (err) {
+                    console.error('圖片複製失敗:', err);
+                    this.showNotification('處理完成！但自動複製失敗，您的瀏覽器可能不支援此操作。', 5000);
+                }
+            },
+            async processImage(imageFile) {
+                const objectURL = URL.createObjectURL(imageFile);
+                const img = new Image();
+                try {
+                    img.src = objectURL;
+                    await img.decode();
+                    
+                    this.dom.originalImagePreview.src = objectURL;
+                    this.dom.inputSection.classList.add('has-content');
+                    this.dom.resetButton.style.display = 'inline-flex';
+                    
+                    this.dom.canvas.width = img.naturalWidth;
+                    this.dom.canvas.height = img.naturalHeight;
+                    
+                    const { naturalWidth: width, naturalHeight: height } = img;
+                    const strength = 2.5; 
+                    const borderRadius = Math.sqrt(Math.min(width, height)) * strength;
+
+                    this.ctx.clearRect(0, 0, width, height);
+                    this.ctx.beginPath();
+                    this.ctx.roundRect(0, 0, width, height, borderRadius);
+                    this.ctx.closePath();
+                    this.ctx.clip();
+                    this.ctx.drawImage(img, 0, 0, width, height);
+                    
+                    this.dom.downloadButton.href = this.dom.canvas.toDataURL('image/png');
+                    
+                    requestAnimationFrame(() => this.dom.panel.classList.add('has-result'));
+                    await this.copyImageToClipboard();
+                } catch (error) {
+                    console.error("圖片處理失敗:", error);
+                    this.showNotification('無法處理該圖片檔案，請確認檔案是否正常。', 5000);
+                    this.resetUI();
+                } finally {
+                    URL.revokeObjectURL(objectURL);
+                }
+            }
+        };
+
+        /**
+         * ----------------------------------------------------------------
+         * VideoTool: 影片內嵌工具模組
+         * ----------------------------------------------------------------
+         */
+        const VideoTool = {
+            dom: {},
+            showNotification: null,
+            init(showNotificationCallback) {
+                this.showNotification = showNotificationCallback;
+                this.cacheDOM();
+                this.bindEvents();
+            },
+            cacheDOM() {
+                const ids = [
+                    "videoUrlInput", "generateBtn", "resultContainer", "codeOutput",
+                    "autoplayCheckbox", "loopCheckbox", "showPlayPauseCheckbox", "showBigPlayButtonCheckbox",
+                    "showRewindCheckbox", "showForwardCheckbox", "showProgressBarCheckbox", "showVolumeCheckbox",
+                    "showSpeedControlCheckbox", "showPipCheckbox", "showAirplayCheckbox", "showFullscreenCheckbox",
+                    "showQualityControlCheckbox", "speedOptionItem", "pipOptionItem", "airplayOptionItem",
+                    "qualityOptionItem", "subtitlesSection", "subtitleEntriesContainer", "addSubtitleBtn"
+                ];
+                this.dom = ids.reduce((acc, id) => {
+                    acc[id] = document.getElementById(id);
+                    return acc;
+                }, {});
+            },
+            bindEvents() {
+                this.dom.generateBtn.addEventListener("click", this.handleGenerateAndCopy.bind(this));
+                this.dom.videoUrlInput.addEventListener("input", this.checkUrlType.bind(this));
+                this.dom.addSubtitleBtn.addEventListener('click', () => this.addSubtitleEntry());
+                this.dom.subtitleEntriesContainer.addEventListener('click', this.handleSubtitleActions.bind(this));
+            },
+            addSubtitleEntry(data = { label: '', lang: '', url: '' }) {
+                const entryDiv = document.createElement('div');
+                entryDiv.className = 'subtitle-entry';
+                entryDiv.innerHTML = `
+                    <button class="delete-subtitle-btn" title="刪除字幕" aria-label="刪除此字幕項目"><i class="fas fa-trash-alt" aria-hidden="true"></i></button>
+                    <div class="subtitle-grid">
+                        <div class="input-group">
+                            <label>語言</label>
+                            <input type="text" class="input-like subtitle-label" value="${data.label}" placeholder="英文, 繁體中文, 日文...">
+                        </div>
+                        <div class="input-group">
+                            <label>代碼</label>
+                            <input type="text" class="input-like subtitle-lang" value="${data.lang}" placeholder="en, zh-TW, ja...">
+                        </div>
+                        <div class="input-group full-width">
+                            <label>字幕網址 (.vtt)</label>
+                            <input type="url" class="input-like subtitle-url" placeholder="https://..." value="${data.url}">
+                        </div>
+                    </div>`;
+                this.dom.subtitleEntriesContainer.appendChild(entryDiv);
+            },
+            handleSubtitleActions(event) {
+                const deleteButton = event.target.closest('.delete-subtitle-btn');
+                if (deleteButton) {
+                    deleteButton.closest('.subtitle-entry').remove();
+                }
+            },
+            handlePagePaste(event) {
+                const pastedText = event.clipboardData?.getData('text/plain')?.trim();
+                if (pastedText && pastedText.startsWith('http')) {
+                    event.preventDefault();
+                    this.dom.videoUrlInput.value = pastedText;
+                    this.checkUrlType();
+                    this.dom.videoUrlInput.focus();
+                }
+            },
+            checkUrlType() {
+                const url = this.dom.videoUrlInput.value.trim();
+                const isYoutube = this._getYouTubeId(url);
+                const isHLS = url.endsWith('.m3u8');
+                
+                const youtubeOnlyControls = [
+                    { item: this.dom.pipOptionItem, checkbox: this.dom.showPipCheckbox },
+                    { item: this.dom.airplayOptionItem, checkbox: this.dom.showAirplayCheckbox },
+                    { item: this.dom.speedOptionItem, checkbox: this.dom.showSpeedControlCheckbox },
+                    { item: this.dom.qualityOptionItem, checkbox: this.dom.showQualityControlCheckbox },
+                ];
+                
+                youtubeOnlyControls.forEach(({ item, checkbox }) => {
+                    item.classList.toggle("disabled", !!isYoutube);
+                    checkbox.disabled = !!isYoutube;
+                    if (isYoutube) checkbox.checked = false;
+                });
+
+                this.dom.subtitlesSection.classList.toggle("disabled", !!isYoutube);
+                if (isYoutube) {
+                    this.dom.subtitleEntriesContainer.innerHTML = '';
+                }
+                
+                if (!isYoutube) {
+                    this.dom.qualityOptionItem.classList.toggle("disabled", !isHLS);
+                    this.dom.showQualityControlCheckbox.disabled = !isHLS;
+                    if (!isHLS) this.dom.showQualityControlCheckbox.checked = false;
+                }
+            },
+            handleGenerateAndCopy() {
+                const url = this.dom.videoUrlInput.value.trim();
+                if (!url) {
+                    this.showError("請輸入影片網址！");
+                    return;
+                }
+                
+                const isYoutube = this._getYouTubeId(url);
+                const playerOptions = this._getPlayerOptions(isYoutube);
+                
+                let code;
+                if (isYoutube) {
+                    code = this._getTemplate("youtube", url, playerOptions);
+                } else if (url.endsWith(".m3u8")) {
+                    code = this._getTemplate("hls", url, playerOptions);
+                } else if (url.endsWith(".mp4") || url.endsWith(".webm")) {
+                    code = this._getTemplate("file", url, playerOptions);
+                } else {
+                    this.showError("無法識別的網址格式。請確認網址結尾為 .mp4, .webm, .m3u8 或為有效的 YouTube 連結。");
+                    return;
+                }
+                
+                this.dom.codeOutput.value = code;
+                this.dom.resultContainer.classList.remove("hidden");
+
+                navigator.clipboard.writeText(code).then(() => {
+                    this.showNotification("程式碼已複製 ✓");
+                }).catch(err => {
+                    this.showError("複製失敗: " + err);
+                });
+            },
+            _getPlayerOptions(isYoutube) {
+                const subtitleEntries = this.dom.subtitleEntriesContainer.querySelectorAll('.subtitle-entry');
+                const subtitles = Array.from(subtitleEntries).map(entry => {
+                    const label = entry.querySelector('.subtitle-label').value.trim();
+                    const srclang = entry.querySelector('.subtitle-lang').value.trim();
+                    const src = entry.querySelector('.subtitle-url').value.trim();
+                    return (label && srclang && src) ? { label, srclang, src } : null;
+                }).filter(Boolean);
+
+                const options = {
+                    subtitles,
+                    speedOptions: [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2],
+                };
+                
+                const checkboxes = [
+                    "autoplay", "loop", "showPlayPause", "showBigPlayButton", "showRewind", "showForward", 
+                    "showProgressBar", "showVolume", "showSpeedControl", "showPip", "showAirplay", 
+                    "showFullscreen", "showQualityControl"
+                ];
+                
+                checkboxes.forEach(key => {
+                    const checkbox = this.dom[`${key}Checkbox`];
+                    options[key] = isYoutube && ["showSpeedControl", "showPip", "showAirplay", "showQualityControl"].includes(key) ? false : checkbox.checked;
+                });
+                
+                options.showSubtitles = isYoutube ? false : subtitles.length > 0;
+                
+                return options;
+            },
+            _getYouTubeId(url) {
+                const regex = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+                const match = url.match(regex);
+                return (match && match[2].length === 11) ? match[2] : null;
+            },
+            showError(message) {
+                if (this.showNotification) {
+                    this.showNotification(message, 4000);
+                }
+                this.dom.resultContainer.classList.add("hidden");
+            },
+            _getTemplate(type, url, options) {
+                const { autoplay, loop, showPlayPause, showRewind, showForward, showProgressBar, showVolume, showSpeedControl, speedOptions, showPip, showAirplay, showFullscreen, showSubtitles, subtitles, showQualityControl, showBigPlayButton } = options;
+            
+                const videoId = type === 'youtube' ? this._getYouTubeId(url) : '';
+                const speedListHTML = showSpeedControl ? speedOptions.map(speed => `<li data-speed="${speed}" ${speed === 1 ? 'class="active"' : ''}>${speed === 1 ? '正常' : `${speed}x`}</li>`).join('\n') : '';
+                const trackElementsHTML = showSubtitles ? subtitles.map(track => `<track kind="captions" label="${track.label}" srclang="${track.srclang}" src="${track.src}">`).join('\n    ') : '';
+                const captionListHTML = showSubtitles ? subtitles.map(track => `<li data-lang="${track.srclang}"><span>${track.label}</span></li>`).join('\n') : '';
+    
+                const hasSettings = showSpeedControl || showPip || showAirplay || showSubtitles || showQualityControl;
+                const controlsHidden = !showPlayPause && !showRewind && !showForward && !showProgressBar && !showVolume && !hasSettings && !showFullscreen;
+    
+                const playerHTML = `
+<div class="player hide-controls ${type === 'youtube' ? 'is-youtube' : ''} ${controlsHidden ? 'controls-completely-disabled' : ''}" id="player">
+    ${type === 'youtube' ? `<div id="youtube-player"></div>` : `<video id="video" preload="metadata" playsinline webkit-playsinline ${autoplay ? "autoplay muted" : ""} ${loop ? "loop" : ""}>${trackElementsHTML}</video>`}
+    <div class="player-shadow"></div>
+    <button id="bigPlay" class="big-play-button" aria-label="播放" ${!showBigPlayButton ? 'style="display:none;"' : ''}><i class="fas fa-play" aria-hidden="true"></i></button>
+    <div class="overlay" id="overlay">
+        <div class="seek-indicator" id="rewindIndicator"><i class="fas fa-backward" aria-hidden="true"></i></div>
+        <div class="seek-indicator" id="forwardIndicator"><i class="fas fa-forward" aria-hidden="true"></i></div>
+    </div>
+    <div class="controls" ${controlsHidden ? 'style="display:none;"' : ""}>
+        <div class="row">
+             <div class="progress-container">
+                <div class="time" id="current" ${!showProgressBar ? 'style="display:none;"' : ""}>0:00</div>
+                <div class="progress" id="progress" ${!showProgressBar ? 'style="display:none;"' : ""}>
+                    <div class="progress__buffer" id="bufferBar"></div>
+                    <div class="progress__bar" id="progressBar"></div>
+                </div>
+                <div class="time" id="duration" ${!showProgressBar ? 'style="display:none;"' : ""}>0:00</div>
+            </div>
+            <button id="rewindBtn" title="倒退 10 秒" aria-label="倒退 10 秒" ${!showRewind ? 'style="display:none;"' : ""}><i class="fas fa-rotate-left" aria-hidden="true"></i></button>
+            <button id="play" title="播放/暫停" aria-label="播放/暫停" ${!showPlayPause ? 'style="display:none;"' : ""}><i class="fas fa-play" aria-hidden="true"></i></button>
+            <button id="forwardBtn" title="快轉 10 秒" aria-label="快轉 10 秒" ${!showForward ? 'style="display:none;"' : ""}><i class="fas fa-rotate-right" aria-hidden="true"></i></button>
+            <div class="spacer"></div>
+            <button id="mute" title="靜音" aria-label="靜音" ${!showVolume ? 'style="display:none;"' : ""}><i class="fas fa-volume-up" aria-hidden="true"></i></button>
+            <div class="settings-container" ${!hasSettings ? 'style="display:none;"' : ""}>
+                <div class="settings-menu">
+                    <div class="settings-menu-panel settings-main-panel active">
+                        <ul>
+                            <li data-action="panel" data-panel="speed" ${!showSpeedControl ? 'style="display:none;"' : ""}><span>播放速度</span><span class="value">正常</span></li>
+                            <li data-action="panel" data-panel="quality" ${!showQualityControl ? 'style="display:none;"' : ""}><span>畫質</span><span class="value">自動</span></li>
+                            <li data-action="panel" data-panel="captions" ${!showSubtitles ? 'style="display:none;"' : ""}><span>字幕</span><span class="value">關閉</span></li>
+                            <li data-action="pip" ${!showPip ? 'style="display:none;"' : ""}>畫中畫</li>
+                            <li data-action="airplay" class="airplay-option" ${!showAirplay ? 'style="display:none;"' : ""}>AirPlay</li>
+                        </ul>
+                    </div>
+                    <div class="settings-menu-panel" data-panel-id="speed">
+                        <div class="panel-header"><li class="menu-back-btn" data-action="back"><span><i class="fas fa-arrow-left" aria-hidden="true"></i>播放速度</span></li></div>
+                        <ul class="panel-options-list">${speedListHTML}</ul>
+                    </div>
+                    <div class="settings-menu-panel" data-panel-id="quality">
+                        <div class="panel-header"><li class="menu-back-btn" data-action="back"><span><i class="fas fa-arrow-left" aria-hidden="true"></i>畫質</span></li></div>
+                        <ul class="panel-options-list"></ul>
+                    </div>
+                     <div class="settings-menu-panel" data-panel-id="captions">
+                        <div class="panel-header"><li class="menu-back-btn" data-action="back"><span><i class="fas fa-arrow-left" aria-hidden="true"></i>字幕</span></li></div>
+                        <ul class="panel-options-list">
+                            <li data-lang="off" class="active"><span>關閉</span></li>
+                            ${captionListHTML}
+                        </ul>
+                    </div>
+                </div>
+                <button id="settingsBtn" title="設定" aria-label="設定"><i class="fas fa-cog" aria-hidden="true"></i></button>
+            </div>
+            <button id="fullscreen" title="全螢幕" aria-label="全螢幕" ${!showFullscreen ? 'style="display:none;"' : ""}><i class="fas fa-expand" aria-hidden="true"></i></button>
+        </div>
+    </div>
+</div>`;
+                const script = type === 'youtube' 
+                    ? VideoTool_getYoutubeScript(videoId, autoplay, loop) 
+                    : VideoTool_getFileHlsScript(type, url);
+    
+                return `<!doctype html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Player</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    ${type === 'hls' ? '<script src="https://cdn.jsdelivr.net/npm/hls.js@latest"><\/script>' : ''}
+    ${VideoTool_PLAYER_CSS}
+    <script>
+        try {
+            document.title = window.parent.document.title;
+        } catch (e) {
+            console.warn("無法獲取父層頁面標題，可能因為跨網域限制。");
+        }
+    <\/script>
+</head>
+<body>
+    ${playerHTML}
+    ${script}
+</body>
+</html>`;
+            },
+        };
+
+        const VideoTool_PLAYER_CSS = `
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Quicksand:wght@500&display=swap');
+    :root { --player-accent-color: #fff; --player-bg-color: #1c1c1e; }
+    html, body { margin: 0; padding: 0; background: #fff; font-family: 'Quicksand', sans-serif; overflow-y: hidden; }
+    * { box-sizing: border-box; }
+    .player { position: relative; width: 100%; max-width: 1200px; background: transparent; border-radius: 24px; overflow: hidden; margin: 0 auto; -webkit-tap-highlight-color: transparent; }
+    .player.is-youtube { aspect-ratio: 16 / 9; display: grid; background: transparent; }
+    video, #youtube-player { width: 100%; height: 100%; display: block; background: transparent; transform: translateZ(0); grid-area: 1 / 1; }
+    #youtube-player { border-radius: 24px; overflow: hidden; }
+    #youtube-player iframe { width: 100%; height: 100%; border: 0; transform: scale(1.05); }
+    .controls { position: absolute; left: 0; right: 0; bottom: 0; display: flex; flex-direction: column; justify-content: flex-end; padding: 12px; transition: opacity .3s; border-radius: 0 0 24px 24px; z-index: 3; color: var(--player-accent-color); }
+    .hide-controls .controls { opacity: 0; pointer-events: none; }
+    .player:not(.hide-controls):not(.controls-completely-disabled) .player-shadow { opacity: 1; }
+    .player.hide-controls { cursor: none; }
+    .row { display: flex; align-items: center; gap: 10px; padding: 6px 10px; flex-wrap: wrap; }
+    .progress-container { display: flex; align-items: center; flex-basis: 100%; order: -1; min-width: 0; gap: 10px;}
+    .progress { flex-grow: 1; height: 6px; border-radius: 999px; background: rgba(255, 255, 255, .35); cursor: ew-resize; position: relative; }
+    .progress__bar, .progress__buffer { position: absolute; inset: 0 auto 0 0; width: 0; border-radius: inherit; }
+    .progress__bar { background: var(--player-accent-color); }
+    .progress__buffer { background: rgba(255, 255, 255, .5); }
+    button, .time { background: transparent; border: none; color: inherit; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; border-radius: 50%; padding: 8px; transition: opacity .2s; }
+    button { flex-shrink: 0; }
+    button:hover { opacity: .8; }
+    .spacer { flex-grow: 1; }
+    .time { font-variant-numeric: tabular-nums; font-size: 14px; padding: 4px 8px; cursor: default; }
+    .time:hover { opacity: 1; }
+    .overlay { position: absolute; inset: 0; display: grid; place-items: center; z-index: 2; pointer-events: none; }
+    .big-play-button { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: transparent; color: var(--player-accent-color); font-size: 48px; display: grid; place-items: center; pointer-events: auto; border: none; border-radius: 50%; padding: 16px; cursor: pointer; z-index: 2; transition: transform .2s, opacity .3s; }
+    .big-play-button:hover { transform: translate(-50%, -50%) scale(1.1); }
+    .player.is-playing .big-play-button { opacity: 0; pointer-events: none; }
+    .seek-indicator { position: absolute; font-size: 40px; color: var(--player-accent-color); background: transparent; border-radius: 50%; padding: 18px 22px; display: grid; place-items: center; opacity: 0; transform: scale(.8); }
+    .seek-indicator.show { animation: seek-fade .6s ease-in-out; }
+    @keyframes seek-fade { 0% { opacity: 0; transform: scale(.8); } 20% { opacity: 1; transform: scale(1.1); } 80% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(.9); } }
+    .settings-container { position: relative; }
+    .settings-menu { position: absolute; bottom: 100%; right: 0; background: var(--player-bg-color); border: 1px solid #424245; border-radius: 14px; margin: 0 0 10px 0; width: 260px; display: none; flex-direction: column; overflow: hidden; max-height: 300px; }
+    .settings-menu.show { display: flex; }
+    .settings-menu-panel { transition: transform .2s ease-in-out; }
+    .settings-menu-panel:not(.settings-main-panel) { position: absolute; top: 0; left: 0; width: 100%; height: 100%; transform: translateX(100%); display: flex; flex-direction: column; background-color: var(--player-bg-color); }
+    .settings-menu.submenu-active .settings-main-panel { transform: translateX(-100%); }
+    .settings-menu.submenu-active .settings-menu-panel.active { transform: translateX(0); }
+    .settings-menu ul { list-style: none; padding: 5px; margin: 0; }
+    .settings-menu .panel-header { flex-shrink: 0; }
+    .settings-menu .panel-options-list { flex: 1 1 auto; overflow-y: auto; }
+    .settings-menu li { padding: 10px 12px; cursor: pointer; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; font-size: 15px; }
+    .settings-menu li:hover { background: rgba(255, 255, 255, .15); }
+    .settings-menu li.active { color: #3e9cff; }
+    .settings-menu .panel-header .menu-back-btn { padding: 12px 15px; font-weight: 600; }
+    .airplay-option { display: none; }
+    .menu-back-btn span { display: flex; align-items: center; gap: 10px; }
+    .player-shadow { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.4); transition: opacity .3s; pointer-events: none; z-index: 1; opacity: 0; border-radius: 24px; }
+    .panel-options-list::-webkit-scrollbar { width: 8px; }
+    .panel-options-list::-webkit-scrollbar-track { background: transparent; }
+    .panel-options-list::-webkit-scrollbar-thumb { background-color: #424245; border-radius: 8px; }
+    .panel-options-list::-webkit-scrollbar-thumb:hover { background-color: #5a5a5e; }
+    @media (max-width: 500px) {
+      .big-play-button { display: none; }
+    }
+</style>
+`;
+        function VideoTool_getFileHlsScript(type, url) { return `<script>
+    const player = document.getElementById('player'), video = document.getElementById('video'), playBtn = document.getElementById('play'), bigPlayBtn = document.getElementById('bigPlay'), rewindBtn = document.getElementById('rewindBtn'), forwardBtn = document.getElementById('forwardBtn'), muteBtn = document.getElementById('mute'), fsBtn = document.getElementById('fullscreen'), progress = document.getElementById('progress'), progressBar = document.getElementById('progressBar'), bufferBar = document.getElementById('bufferBar'), curEl = document.getElementById('current'), durEl = document.getElementById('duration'), settingsBtn = document.getElementById('settingsBtn'), settingsMenu = document.querySelector('.settings-menu'), mainPanel = document.querySelector('.settings-main-panel'), rewindIndicator = document.getElementById('rewindIndicator'), forwardIndicator = document.getElementById('forwardIndicator'), playIcon = playBtn?.querySelector('i'), muteIcon = muteBtn?.querySelector('i'), fsIcon = fsBtn?.querySelector('i');
+    let hls, isScrubbing = false, lastTap = 0, singleTapTimer, controlsTimeout;
+    const airplayOption = document.querySelector('.airplay-option');
+    if (video && airplayOption && 'webkitShowPlaybackTargetPicker' in video) {
+        video.addEventListener('webkitplaybacktargetavailabilitychanged', function(event) {
+            airplayOption.style.display = event.availability === 'available' ? 'flex' : 'none';
+        });
+    }
+    let isAutoplayInitial = video.autoplay;
+    document.addEventListener('contextmenu', e=>e.preventDefault());
+    if ("${type}" === "hls" && Hls.isSupported()) { hls = new Hls(); hls.loadSource('${url}'); hls.attachMedia(video); } else { video.src = '${url}'; }
+    if (video.muted && muteIcon) { muteIcon.className = 'fas fa-volume-mute'; }
+    const formatTime = (time) => !isFinite(time) ? "0:00" : \`\${Math.floor(time / 60)}:\${String(Math.floor(time % 60)).padStart(2, "0")}\`;
+    const showSeekIndicator = (indicator) => { indicator.classList.add("show"); setTimeout(() => indicator.classList.remove("show"), 600); };
+    const togglePlay = () => video.paused ? video.play() : video.pause();
+    const seek = (seconds) => video.currentTime = Math.max(0, Math.min(video.duration, video.currentTime + seconds));
+    const toggleMute = () => video.muted = !video.muted;
+    const toggleFullscreen = () => { if (document.fullscreenElement) { document.exitFullscreen(); } else if (player.requestFullscreen) { player.requestFullscreen(); } else if (video.webkitEnterFullscreen) { video.webkitEnterFullscreen(); } };
+    const togglePip = () => document.pictureInPictureElement ? document.exitPictureInPicture() : video.requestPictureInPicture();
+    const toggleAirplay = () => video.webkitShowPlaybackTargetPicker?.();
+    const hidePlayerControls = () => { if (video.paused) return; player.classList.add('hide-controls'); }, showPlayerControls = () => { clearTimeout(controlsTimeout); player.classList.remove('hide-controls'); if (!video.paused) { controlsTimeout = setTimeout(hidePlayerControls, 3000); } };
+    video.addEventListener('loadedmetadata', () => { player.style.aspectRatio = video.videoWidth / video.videoHeight; if (durEl) durEl.textContent = formatTime(video.duration); });
+    video.addEventListener('timeupdate', () => { if (curEl) curEl.textContent = formatTime(video.currentTime); if (!isScrubbing && progressBar?.style && video.duration) progressBar.style.width = \`\${video.currentTime / video.duration * 100}%\`; });
+    video.addEventListener('progress', () => { if (video.buffered.length > 0 && bufferBar?.style && video.duration) { bufferBar.style.width = \`\${video.buffered.end(video.buffered.length - 1) / video.duration * 100}%\`; } });
+    video.addEventListener('volumechange', () => { if (muteIcon) muteIcon.className = video.muted ? 'fas fa-volume-mute' : 'fas fa-volume-up'; });
+    video.addEventListener('play', () => { player.classList.add('is-playing'); if (playIcon) playIcon.className = 'fas fa-pause'; if (isAutoplayInitial) { isAutoplayInitial = false; return; } showPlayerControls(); });
+    video.addEventListener('pause', () => { player.classList.remove('is-playing'); if (playIcon) playIcon.className = 'fas fa-play'; showPlayerControls(); });
+    playBtn?.addEventListener('click', togglePlay); bigPlayBtn?.addEventListener('click', togglePlay); rewindBtn?.addEventListener('click', () => seek(-10)); forwardBtn?.addEventListener('click', () => seek(10)); muteBtn?.addEventListener('click', toggleMute); fsBtn?.addEventListener('click', toggleFullscreen);
+    player.addEventListener('mousemove', showPlayerControls); player.addEventListener('mouseleave', hidePlayerControls);
+    player.addEventListener('click', (e) => {
+        if (e.target.closest('.controls') || e.target.closest('.big-play-button')) return;
+        const tapLength = Date.now() - lastTap;
+        clearTimeout(singleTapTimer);
+        if (tapLength < 300 && tapLength > 0) { const rect = player.getBoundingClientRect(), seekSeconds = e.clientX - rect.left < rect.width / 2 ? -10 : 10; seek(seekSeconds); showSeekIndicator(seekSeconds < 0 ? rewindIndicator : forwardIndicator); } else { singleTapTimer = setTimeout(togglePlay, 300); }
+        lastTap = Date.now();
+    });
+    if (settingsBtn) {
+        settingsBtn.addEventListener('click', (e) => { e.stopPropagation(); settingsMenu.classList.toggle('show'); settingsMenu.classList.remove("submenu-active"); settingsMenu.querySelectorAll('.settings-menu-panel').forEach(p => p.classList.remove("active")); });
+        settingsMenu.addEventListener('click', (e) => {
+            const target = e.target.closest("li"); if (!target) return;
+            const { action, panel, speed, lang, level } = target.dataset;
+            if (action === "panel") { settingsMenu.classList.add("submenu-active"); settingsMenu.querySelector(\`[data-panel-id="\${panel}"]\`)?.classList.add("active"); } 
+            else if (action === "back") { settingsMenu.classList.remove("submenu-active"); } 
+            else if (action === "pip") { togglePip(); settingsMenu.classList.remove("show"); } 
+            else if (action === "airplay") { toggleAirplay(); settingsMenu.classList.remove("show"); } 
+            else if (speed) { video.playbackRate = parseFloat(speed); mainPanel.querySelector('[data-panel="speed"] .value').textContent = speed === '1' ? "正常" : \`\${speed}x\`; settingsMenu.querySelector('[data-panel-id="speed"] .active')?.classList.remove("active"); target.classList.add("active"); settingsMenu.classList.remove("show", "submenu-active"); } 
+            else if (lang) { for (const track of video.textTracks) track.mode = track.language === lang ? "showing" : "hidden"; mainPanel.querySelector('[data-panel="captions"] .value').textContent = lang === 'off' ? '關閉' : target.textContent; settingsMenu.querySelector('[data-panel-id="captions"] .active')?.classList.remove("active"); target.classList.add("active"); settingsMenu.classList.remove("show", "submenu-active"); } 
+            else if (level && hls) { hls.currentLevel = parseInt(level, 10); mainPanel.querySelector('[data-panel="quality"] .value').textContent = level === '-1' ? "自動" : \`\${hls.levels[level].height}p\`; settingsMenu.querySelector('[data-panel-id="quality"] .active')?.classList.remove("active"); target.classList.add("active"); settingsMenu.classList.remove("show", "submenu-active"); }
+        });
+        if (hls && settingsMenu.querySelector('[data-panel-id="quality"]')) { hls.on(Hls.Events.MANIFEST_PARSED, (event, data) => { const list = settingsMenu.querySelector('[data-panel-id="quality"] .panel-options-list'); if (data.levels.length > 1) { list.innerHTML = '<li data-level="-1" class="active"><span>自動</span></li>'; data.levels.forEach((level, index) => list.innerHTML += \`<li data-level="\${index}"><span>\${level.height}p</span></li>\`); } }); }
+    }
+    const scrub = (e) => { if (!isFinite(video.duration)) return; let percent = (e.clientX - progress.getBoundingClientRect().left) / progress.getBoundingClientRect().width; video.currentTime = Math.min(Math.max(percent, 0), 1) * video.duration; };
+    progress?.addEventListener('pointerdown', (e) => {
+        if (e.button !== 0) return; isScrubbing = true; document.body.style.cursor = "ew-resize"; progress.setPointerCapture(e.pointerId); scrub(e);
+        const onPointerMove = (e) => { if (isScrubbing) scrub(e); };
+        const onPointerUp = () => { isScrubbing = false; document.body.style.cursor = ""; progress.releasePointerCapture(e.pointerId); document.removeEventListener('pointermove', onPointerMove); document.removeEventListener('pointerup', onPointerUp); };
+        document.addEventListener('pointermove', onPointerMove); document.addEventListener('pointerup', onPointerUp);
+    });
+    document.addEventListener('fullscreenchange', () => { if (fsIcon) fsIcon.className = document.fullscreenElement ? 'fas fa-compress' : 'fas fa-expand'; });
+    document.addEventListener('click', (e) => { if (settingsMenu && !e.target.closest(".settings-container")) settingsMenu.classList.remove("show", "submenu-active"); });
+    document.addEventListener('keydown', (e) => { if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return; switch (e.key.toLowerCase()) { case " ": e.preventDefault(); togglePlay(); break; case "m": toggleMute(); break; case "f": toggleFullscreen(); break; case "arrowright": seek(5); break; case "arrowleft": seek(-5); break; } });
+<\/script>`;}
+        function VideoTool_getYoutubeScript(videoId, autoplay, loop) { return `<script>
+    const tag = document.createElement("script"); tag.src = "https://www.youtube.com/iframe_api"; document.head.appendChild(tag);
+    const playerContainer = document.getElementById("player"), playBtn = document.getElementById("play"), bigPlayBtn = document.getElementById("bigPlay"), rewindBtn = document.getElementById("rewindBtn"), forwardBtn = document.getElementById("forwardBtn"), muteBtn = document.getElementById("mute"), fsBtn = document.getElementById("fullscreen"), progress = document.getElementById("progress"), progressBar = document.getElementById("progressBar"), bufferBar = document.getElementById("bufferBar"), curEl = document.getElementById("current"), durEl = document.getElementById("duration"), playIcon = playBtn?.querySelector('i'), muteIcon = muteBtn?.querySelector('i'), fsIcon = fsBtn?.querySelector('i');
+    let ytPlayer, progressUpdateInterval, isScrubbing = false, controlsTimeout;
+    let isAutoplayInitial = ${autoplay};
+    window.onYouTubeIframeAPIReady = () => { 
+        ytPlayer = new YT.Player("youtube-player", { 
+            width: '100%', 
+            height: '100%', 
+            videoId: "${videoId}", 
+            playerVars: { 
+                playsinline: 1, controls: 0, rel: 0, showinfo: 0, modestbranding: 1, 
+                iv_load_policy: 3, disablekb: 0, origin: window.location.origin, 
+                autoplay: ${autoplay ? 1 : 0}, mute: ${autoplay ? 1 : 0}, 
+                loop: ${loop ? 1 : 0}, playlist: ${loop ? `'${videoId}'` : 'undefined'} 
+            }, 
+            events: { onReady: onPlayerReady, onStateChange: onPlayerStateChange } 
+        }); 
+    };
+    function onPlayerReady(event) {
+        bindEvents(); 
+        updateUI(); 
+        progressUpdateInterval = setInterval(updateProgress, 250);
+    }
+    function onPlayerStateChange(event) { 
+        const isPlaying = event.data === YT.PlayerState.PLAYING;
+        playerContainer.classList.toggle('is-playing', isPlaying);
+        if (playIcon) playIcon.className = isPlaying ? 'fas fa-pause' : 'fas fa-play';
+        updateMuteIcon();
+        if (isPlaying && isAutoplayInitial) { isAutoplayInitial = false; return; }
+        showPlayerControls();
+    }
+    const bindEvents = () => {
+        playBtn?.addEventListener("click", togglePlay);
+        bigPlayBtn?.addEventListener("click", togglePlay);
+        rewindBtn?.addEventListener("click", () => seek(-10));
+        forwardBtn?.addEventListener("click", () => seek(10));
+        muteBtn?.addEventListener("click", toggleMute);
+        fsBtn?.addEventListener("click", toggleFullscreen);
+        progress?.addEventListener('pointerdown', onScrubStart);
+        document.addEventListener("fullscreenchange", () => {
+            if (fsIcon) fsIcon.className = document.fullscreenElement ? 'fas fa-compress' : 'fas fa-expand';
+            if (document.fullscreenElement === playerContainer) {
+                document.addEventListener('mousemove', showPlayerControls);
+            } else {
+                document.removeEventListener('mousemove', showPlayerControls);
+            }
+        });
+        playerContainer.addEventListener('mousemove', showPlayerControls);
+        playerContainer.addEventListener('mouseleave', hidePlayerControls);
+        document.addEventListener("keydown", handleKeydown);
+    };
+    const updateMuteIcon = () => { if(muteIcon) muteIcon.className = ytPlayer.isMuted() ? 'fas fa-volume-mute' : 'fas fa-volume-up'; };
+    const updateUI = () => { if (durEl) durEl.textContent = formatTime(ytPlayer.getDuration()); updateMuteIcon(); };
+    const updateProgress = () => { const currentTime = ytPlayer.getCurrentTime(), duration = ytPlayer.getDuration(); if (curEl) curEl.textContent = formatTime(currentTime); if (!isScrubbing && progressBar?.style && duration > 0) progressBar.style.width = \`\${currentTime / duration * 100}%\`; if (bufferBar?.style) bufferBar.style.width = \`\${ytPlayer.getVideoLoadedFraction() * 100}%\`; };
+    const hidePlayerControls = () => { if (ytPlayer.getPlayerState() !== YT.PlayerState.PLAYING) return; playerContainer.classList.add('hide-controls'); };
+    const showPlayerControls = () => { clearTimeout(controlsTimeout); playerContainer.classList.remove('hide-controls'); if (ytPlayer.getPlayerState() === YT.PlayerState.PLAYING) controlsTimeout = setTimeout(hidePlayerControls, 3000); };
+    const togglePlay = () => { const playerState = ytPlayer.getPlayerState(); if (playerState === YT.PlayerState.PLAYING) { ytPlayer.pauseVideo(); } else { ytPlayer.playVideo(); }};
+    const seek = (seconds) => ytPlayer.seekTo(ytPlayer.getCurrentTime() + seconds, true);
+    const toggleMute = () => { if (ytPlayer.isMuted()) { ytPlayer.unMute(); } else { ytPlayer.mute(); } setTimeout(updateMuteIcon, 50); };
+    const toggleFullscreen = () => { if (document.fullscreenElement) { document.exitFullscreen(); } else if (playerContainer.requestFullscreen) { playerContainer.requestFullscreen(); } };
+    const formatTime = (time) => \`\${Math.floor(time / 60)}:\${String(Math.floor(time % 60)).padStart(2, "0")}\`;
+    function onScrubStart(e) {
+        if (e.button !== 0) return; isScrubbing = true; document.body.style.cursor = "ew-resize"; progress.setPointerCapture(e.pointerId); scrub(e);
+        const onScrubMove = (e) => { if(isScrubbing) scrub(e); }, onScrubEnd = () => { isScrubbing = false; document.body.style.cursor = ""; progress.releasePointerCapture(e.pointerId); document.removeEventListener('pointermove', onScrubMove); document.removeEventListener('pointerup', onScrubEnd); };
+        document.addEventListener('pointermove', onScrubMove); document.addEventListener('pointerup', onScrubEnd);
+    }
+    const scrub = (e) => { const rect = progress.getBoundingClientRect(), percent = Math.min(Math.max(0, (e.clientX - rect.left) / rect.width), 1); ytPlayer.seekTo(percent * ytPlayer.getDuration(), true); };
+    const handleKeydown = (e) => { if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return; switch (e.key.toLowerCase()) { case " ": e.preventDefault(); togglePlay(); break; case "m": toggleMute(); break; case "f": toggleFullscreen(); break; case "arrowright": seek(5); break; case "arrowleft": seek(-5); break; } };
+<\/script>`;}
+        
+        document.addEventListener('DOMContentLoaded', () => MainApp.init());
+
+    })();
+    </script>
+</body>
+</html>
